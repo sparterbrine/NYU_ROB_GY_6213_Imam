@@ -167,12 +167,18 @@ def main():
 
     def run_trial():
         robot.trial_start_time = get_time_in_ms()
-        robot.running_trial = True
-        steering_switch.value = True
-        speed_switch.value = True
-        logging_switch.value = True
+        cmd_steering_angle: int = slider_steering.value
+        cmd_speed: int = 100
+        trial_time: float = 2.5
+        encoder_value_start: int = robot.robot_sensor_signal.encoder_counts
         print("Start time:", robot.trial_start_time)
+        t0 = time()
+        while time() - t0 < trial_time:
+            robot.control_loop(cmd_speed, cmd_steering_angle, logging_switch.value)
 
+        encoder_value_end: int = robot.robot_sensor_signal.encoder_counts
+        print(f"Trial end time = {get_time_in_ms() - robot.trial_start_time}")
+        print(f"Encoder counts measured: = {encoder_value_end - encoder_value_start}")
 
     # Create the gui title bar
     with ui.card().classes('w-full  items-center'):

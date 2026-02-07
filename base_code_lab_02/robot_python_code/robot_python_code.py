@@ -314,5 +314,5 @@ class Robot:
             self.msg_sender.send_control_signal(control_signal)
             
         # Log the data
-        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal)
+        # self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal)
 
