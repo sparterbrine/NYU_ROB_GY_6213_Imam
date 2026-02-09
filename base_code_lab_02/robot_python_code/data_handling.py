@@ -8,6 +8,7 @@ import numpy as np
 import parameters
 import robot_python_code
 import motion_models
+from motion_models import State
 
 # Open a file and return data in a form ready to plot
 def get_file_data(filename):
@@ -49,12 +50,12 @@ def plot_trial_basics(filename):
 def run_my_model_on_trial(filename, show_plot = True, plot_color = 'ko'):
     time_list, encoder_count_list, velocity_list, steering_angle_list = get_file_data(filename)
     
-    motion_model = motion_models.MyMotionModel([0,0,0], 0)
+    motion_model = motion_models.MyMotionModel(State(0,0,0), 0)
     x_list, y_list, theta_list = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
 
     plt.plot(x_list, y_list,plot_color)
     plt.title('Motion Model Predicted XY Traj (m)')
-    plt.axis([-0.5, 1.5, -1, 1])
+    plt.axis((-0.5, 1.5, -1, 1))
     if show_plot:
         plt.show()
 
@@ -74,7 +75,7 @@ def plot_many_trial_predictions(directory):
 # Calculate the predicted distance from single trial for a motion model
 def run_my_model_to_predict_distance(filename):
     time_list, encoder_count_list, velocity_list, steering_angle_list = get_file_data(filename)
-    motion_model = motion_models.MyMotionModel([0,0,0], 0)
+    motion_model = motion_models.MyMotionModel(State(0,0,0), 0)
     x_list, _, _ = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
     distance = x_list[-30]
     
@@ -128,8 +129,8 @@ def process_files_and_plot(files_and_data, directory):
 def sample_model(num_samples):
     traj_duration = 10
     for i in range(num_samples):
-        model = motion_models.MyMotionModel([0,0,0], 0)
-        traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
+        model = motion_models.MyMotionModel(State(0,0,0), 0)
+        traj_t, traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
         plt.plot(traj_x, traj_y, 'k.')
 
     plt.title('Sampling the model')
