@@ -106,7 +106,7 @@ def main():
         if robot.extra_logging:
             delta_time = get_time_in_ms() - robot.trial_start_time
             if delta_time > parameters.trial_time + parameters.extra_trial_log_time:
-                logging_switch.value = False
+                # logging_switch.value = True
                 robot.extra_logging = False
 
         # Regular slider controls
@@ -205,6 +205,7 @@ def main():
                 ui.label('Encoder:').style('text-align: center;')
                 encoder_count_label = ui.label('0')
                 logging_switch = ui.switch('Data Logging ')
+                # logging_switch.value = True
                 udp_switch = ui.switch('Robot Connect')
                 run_trial_button = ui.button('Run Trial', on_click=lambda:run_trial())
                 
@@ -239,8 +240,8 @@ def main():
         cmd_speed, cmd_steering_angle = update_commands()
         robot.control_loop(cmd_speed, cmd_steering_angle, logging_switch.value)
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
-        update_lidar_data()
-        show_lidar_plot()
+        # update_lidar_data()
+        # show_lidar_plot()
         #update_video(video_image)
         
     ui.timer(0.1, control_loop)

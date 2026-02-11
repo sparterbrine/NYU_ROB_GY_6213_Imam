@@ -281,6 +281,7 @@ class Robot:
         self.running_trial = False
         self.extra_logging = False
         self.trial_start_time = 0
+        self.extra_logging = False
         self.msg_sender = None
         self.msg_receiver = None
         self.camera_sensor = CameraSensor(parameters.camera_id)
@@ -315,5 +316,5 @@ class Robot:
             self.msg_sender.send_control_signal(control_signal)
             
         # Log the data
-        # self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal)
+        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal)
 

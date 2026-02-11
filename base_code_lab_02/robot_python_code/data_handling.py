@@ -52,9 +52,9 @@ def run_my_model_on_trial(filename, show_plot = True, plot_color = 'ko'):
     motion_model = motion_models.MyMotionModel([0,0,0], 0)
     x_list, y_list, theta_list = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
 
-    plt.plot(x_list, y_list,plot_color)
+    plt.plot(x_list, y_list, plot_color)
     plt.title('Motion Model Predicted XY Traj (m)')
-    plt.axis([-0.5, 1.5, -1, 1])
+    plt.axis((-1, 3, -2, 2))
     if show_plot:
         plt.show()
 
@@ -69,6 +69,7 @@ def plot_many_trial_predictions(directory):
         plot_color = plot_color_list[count]
         run_my_model_on_trial(directory + filename, False, plot_color)
         count += 1
+    plt.axis((0.1, 3.6, -1., 0.5))
     plt.show()
 
 # Calculate the predicted distance from single trial for a motion model
@@ -81,7 +82,7 @@ def run_my_model_to_predict_distance(filename):
     return distance
 
 # Calculate the differences between two lists, and square them.
-def get_diff_squared(m_list,p_list):
+def get_diff_squared(m_list, p_list):
     diff_squared_list = []
     for i in range(len(m_list)):
         diff_squared = math.pow(m_list[i]-p_list[i],2)
@@ -92,6 +93,8 @@ def get_diff_squared(m_list,p_list):
 
     plt.plot(m_list, diff_squared_list,'ko')
     plt.plot(m_list, p(m_list),'ro')
+    x_fit = np.linspace(min(m_list), max(m_list), 100)
+    plt.plot(x_fit, p(x_fit), 'r-', label='Fit')
     plt.title("Error Squared (m^2)")
     plt.xlabel('Measured distance travelled (m)')
     plt.ylabel('(Actual - Predicted)^2 (m^2)')
@@ -106,14 +109,15 @@ def process_files_and_plot(files_and_data, directory):
     measured_distance_list = []
     for row in files_and_data:
         filename = row[0]
+        print(directory + filename)
         measured_distance = row[1]
         measured_distance_list.append(measured_distance)
         predicted_distance = run_my_model_to_predict_distance(directory + filename)
         predicted_distance_list.append(predicted_distance)
 
     # Plot predicted and measured distance travelled.
-    plt.plot(measured_distance_list+[0], predicted_distance_list+[0], 'ko')
-    plt.plot([0,1.7],[0,1.7])
+    plt.plot(measured_distance_list, predicted_distance_list, 'ko')
+    plt.plot([0, 4.],[0, 4.])
     plt.title('Distance Trials')
     plt.xlabel('Measured Distance (m)')
     plt.ylabel('Predicted Distance (m)')
@@ -129,7 +133,7 @@ def sample_model(num_samples):
     traj_duration = 10
     for i in range(num_samples):
         model = motion_models.MyMotionModel([0,0,0], 0)
-        traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
+        t_list, traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
         plt.plot(traj_x, traj_y, 'k.')
 
     plt.title('Sampling the model')
@@ -142,32 +146,29 @@ def sample_model(num_samples):
 
 # Some sample data to test with
 files_and_data = [
-    ['robot_data_60_0_28_01_26_13_41_44.pkl', 67/100], # filename, measured distance in meters
-    ['robot_data_60_0_28_01_26_13_43_41.pkl', 68/100],
-    ['robot_data_60_0_28_01_26_13_37_15.pkl', 113/100],
-    ['robot_data_60_0_28_01_26_13_35_18.pkl', 107/100],
-    ['robot_data_60_0_28_01_26_13_41_10.pkl', 65/100],
-    ['robot_data_60_0_28_01_26_13_42_55.pkl', 70/100],
-    ['robot_data_60_0_28_01_26_13_39_36.pkl', 138/100],
-    ['robot_data_60_0_28_01_26_13_42_19.pkl', 69/100],
-    ['robot_data_60_0_28_01_26_13_36_10.pkl', 109/100],
-    ['robot_data_60_0_28_01_26_13_33_20.pkl', 100/100],
-    ['robot_data_60_0_28_01_26_13_34_28.pkl', 103/100],
+    ['robot_data_0_-1_09_02_26_16_17_04.pkl', 289/100], # filename, measured distance in meters
+    ['robot_data_0_-5_09_02_26_16_20_28.pkl', 166/100],
+    ['robot_data_0_-20_09_02_26_16_19_12.pkl', 63/100],
+    ['robot_data_0_0_09_02_26_16_14_08.pkl', 320/100],
+    ['robot_data_0_5_09_02_26_16_21_53.pkl', 98/100],
+    ['data_0_0_09_02_26_19_16_33.pkl', 182/100]
     ]
 
 # Plot the motion model predictions for a single trial
 if False:
-    filename = './data_straight/robot_data_60_0_28_01_26_13_36_10.pkl'
+    filename = './data/data_0_0_09_02_26_19_16_33.pkl'
+    run_my_model_on_trial(filename)
+    time_list, encoder_count_list, velocity_list, steering_angle_list = get_file_data(filename)
     run_my_model_on_trial(filename)
 
 # Plot the motion model predictions for each trial in a folder
-if False:
-    directory = ('./data_straight/')
+if True:
+    directory = ('./data/')
     plot_many_trial_predictions(directory)
 
 # A list of files to open, process, and plot - for comparing predicted with actual distances
-if False:
-    directory = ('./data_straight/')    
+if True:
+    directory = ('./data/')    
     process_files_and_plot(files_and_data, directory)
 
 # Try to sample with the motion model

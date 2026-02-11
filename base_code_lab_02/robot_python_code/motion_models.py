@@ -26,11 +26,21 @@ def variance_rotational_velocity_w(distance):
 
     return var_w
 
-def rotational_velocity_w(steering_angle_command):
-    # Add student code here
-    w = 0
+def rotational_velocity_w(steering_angle_command: int) -> float:
+    slope: float = 2.25
+    intercept: float= -0.66
     
+    w: float = (slope * steering_angle_command) + intercept
+    w = w*(-1)
     return w
+
+class State:
+    def __init__(self, x: float, y: float, theta: float):
+        """[x_g, y_g, theta_g]"""
+        self.x: float = x
+        self.y: float = y
+        self.theta: float= theta
+        '''In Degrees'''
 
 # This class is an example structure for implementing your motion model.
 class MyMotionModel:
@@ -41,8 +51,19 @@ class MyMotionModel:
         self.last_encoder_count = last_encoder_count
 
     # This is the key step of your motion model, which implements x_t = f(x_{t-1}, u_t)
-    def step_update(self, encoder_counts, steering_angle_command, delta_t):
-        # Add student code here
+    def step_update(self, encoder_counts: int, steering_angle_command: int, delta_t: float) -> State:
+        distance_travelled: float = distance_travelled_s(encoder_counts - self.last_encoder_count)
+        '''This is delta_s'''
+        # if abs(steering_angle_command) < 0.001:
+        #     delta_x = distance_travelled * math.sin(self.state.theta)
+        #     delta_y = distance_travelled * math.cos(self.state.theta)
+        #     delta_theta = 0.
+        # else:
+        #     # curavature_radius: float = self.wheel_base / math.tan(math.radians(steering_angle_command))
+        delta_theta: float = 0 if distance_travelled == 0 else delta_t * rotational_velocity_w(steering_angle_command)
+        '''This is delta_theta'''
+        delta_x: float= distance_travelled * math.cos(math.radians(self.state.theta + delta_theta/2))
+        delta_y: float= distance_travelled * math.sin(math.radians(self.state.theta + delta_theta/2))
         
         return self.state
     
@@ -54,11 +75,11 @@ class MyMotionModel:
         theta_list = [self.state[2]]
         self.last_encoder_count = encoder_count_list[0]
         for i in range(1, len(encoder_count_list)):
-            delta_t = time_list[i] - time_list[i-1]
-            new_state = self.step_update(encoder_count_list[i], steering_angle_list[i], delta_t)
-            x_list.append(new_state[0])
-            y_list.append(new_state[1])
-            theta_list.append(new_state[2])
+            delta_t: float = time_list[i] - time_list[i-1]
+            new_state: State = self.step_update(encoder_count_list[i], steering_angle_list[i], delta_t)
+            x_list.append(new_state.x)
+            y_list.append(new_state.y)
+            theta_list.append(new_state.theta)
 
         return x_list, y_list, theta_list
     
