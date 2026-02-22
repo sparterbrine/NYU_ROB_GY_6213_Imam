@@ -3,17 +3,16 @@ import math
 import numpy as np
 
 # UDP parameters
-localIP = "192.168.0.199" # Put your laptop computer's IP here 199
+localIP = "192.168.0.200" # Put your laptop computer's IP here 199
 arduinoIP = "192.168.0.198" # Put your arduino's IP here 200
 localPort = 4010
 arduinoPort = 4010
 bufferSize = 1024
 
 # Camera parameters
-camera_id = 0
-marker_length = 0.071
-camera_id = 0
-marker_length = 0.07614 # meters
+camera_id = 2
+marker_length = 0.094488 # meters
+''' ArUco marker parameters from calibration - the length of the entire thing(not a pixel in it) '''
 camera_matrix = np.array([[
             1538.7939968143703,
             0.0,

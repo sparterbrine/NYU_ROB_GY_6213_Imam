@@ -47,7 +47,10 @@ def get_time_in_ms():
 def main():
 
     # Robot variables
-    robot = Robot()
+    video_capture = None
+    if stream_video:
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    robot = Robot(video_capture)
 
     # Lidar data
     max_lidar_range = 12
@@ -67,18 +70,18 @@ def main():
     
     # Set up the video stream, not needed for lab 1
     if stream_video:
-        video_capture = cv2.VideoCapture(parameters.camera_id)
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
     
     # Enable frame grabs from the video stream.
     @app.get('/video/frame')
     async def grab_video_frame() -> Response:
         if not video_capture.isOpened():
-            return placeholder
+            return Response(status_code=204)
         # The `video_capture.read` call is a blocking function.
         # So we run it in a separate thread (default executor) to avoid blocking the event loop.
         _, frame = await run.io_bound(video_capture.read)
         if frame is None:
-            return placeholder
+            return Response(status_code=204)
         # `convert` is a CPU-intensive function, so we run it in a separate process to avoid blocking the event loop and GIL.
         jpeg = await run.cpu_bound(convert, frame)
         return Response(content=jpeg, media_type='image/jpeg')
@@ -261,7 +264,7 @@ def main():
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
         #update_lidar_data()
         #show_lidar_plot()
-        show_localization_plot()
+        # show_localization_plot()
         update_video(video_image)
         
     ui.timer(0.1, control_loop)

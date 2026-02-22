@@ -17,14 +17,14 @@ import robot_python_code
 # The core robot class
 class Robot:
 
-    def __init__(self):
+    def __init__(self, video_capture=None):
         self.connected_to_hardware = False
         self.running_trial = False
         self.extra_logging = False
         self.trial_start_time = 0
         self.msg_sender = None
         self.msg_receiver = None
-        self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id)
+        self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id, video_capture)
         self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal = [0,0,0,0,0,0]
@@ -69,5 +69,5 @@ class Robot:
             self.msg_sender.send_control_signal(control_signal)
             
         # Log the data
-        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal, self.extended_kalman_filter.state_mean, self.extended_kalman_filter.state_covariance)
+        # self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal, self.extended_kalman_filter.state_mean, self.extended_kalman_filter.state_covariance)
 
