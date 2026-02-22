@@ -10,9 +10,7 @@ arduinoPort = 4010
 bufferSize = 1024
 
 # Camera parameters
-camera_id = 0
-marker_length = 0.071
-camera_id = 0
+camera_id = 2
 marker_length = 0.07614 # meters
 camera_matrix = np.array([[
             1538.7939968143703,

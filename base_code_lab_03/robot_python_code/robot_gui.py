@@ -67,18 +67,18 @@ def main():
     
     # Set up the video stream, not needed for lab 1
     if stream_video:
-        video_capture = cv2.VideoCapture(parameters.camera_id)
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
     
     # Enable frame grabs from the video stream.
     @app.get('/video/frame')
     async def grab_video_frame() -> Response:
         if not video_capture.isOpened():
-            return placeholder
+            return Response(status_code=204)
         # The `video_capture.read` call is a blocking function.
         # So we run it in a separate thread (default executor) to avoid blocking the event loop.
         _, frame = await run.io_bound(video_capture.read)
         if frame is None:
-            return placeholder
+            return Response(status_code=204)
         # `convert` is a CPU-intensive function, so we run it in a separate process to avoid blocking the event loop and GIL.
         jpeg = await run.cpu_bound(convert, frame)
         return Response(content=jpeg, media_type='image/jpeg')
