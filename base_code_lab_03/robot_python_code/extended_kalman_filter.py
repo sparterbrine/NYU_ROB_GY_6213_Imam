@@ -8,6 +8,8 @@ from matplotlib.patches import Ellipse
 import parameters
 import data_handling
 
+from motion_models import distance_travelled_s, rotational_velocity_w, state_prediction, State
+
 # Main class
 class ExtendedKalmanFilter:
     def __init__(self, x_0, Sigma_0, encoder_counts_0):
@@ -54,20 +56,12 @@ class ExtendedKalmanFilter:
         self.state_mean = self.predicted_state_mean + K @ innovation
         self.state_covariance = (np.eye(3) - K @ H) @ self.predicted_state_covariance
 
-    # Function to calculate distance from encoder counts
-    def distance_travelled_s(self, encoder_counts):
-        return 0.000294 * encoder_counts    
-            
-    # Function to calculate rotational velocity from steering and dist travelled or speed
-    def rotational_velocity_w(self, steering_angle_command):        
-        return (2.25 * steering_angle_command) - 0.66
-
     # The nonlinear transition equation that provides new states from past states
     def g_function(self, x_tm1, u_t, delta_t):
         delta_encoder = u_t[0] - self.last_encoder_counts
-        s = self.distance_travelled_s(delta_encoder)
+        s = distance_travelled_s(delta_encoder)
         
-        w_deg = self.rotational_velocity_w(u_t[1])
+        w_deg = rotational_velocity_w(u_t[1])
         delta_theta = w_deg * delta_t
         
         theta_rad = math.radians(x_tm1[2])
