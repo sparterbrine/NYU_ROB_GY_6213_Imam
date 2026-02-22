@@ -47,7 +47,10 @@ def get_time_in_ms():
 def main():
 
     # Robot variables
-    robot = Robot()
+    video_capture = None
+    if stream_video:
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    robot = Robot(video_capture)
 
     # Lidar data
     max_lidar_range = 12
@@ -261,7 +264,7 @@ def main():
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
         #update_lidar_data()
         #show_lidar_plot()
-        show_localization_plot()
+        # show_localization_plot()
         update_video(video_image)
         
     ui.timer(0.1, control_loop)

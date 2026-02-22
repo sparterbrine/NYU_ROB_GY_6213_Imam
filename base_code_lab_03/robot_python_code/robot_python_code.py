@@ -196,10 +196,13 @@ class MsgReceiver:
 class CameraSensor:
 
     # Constructor
-    def __init__(self, camera_id):
+    def __init__(self, camera_id, video_capture=None):
         self.camera_id = camera_id
-        self.cap = cv2.VideoCapture(camera_id)
-        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
+        if video_capture:
+            self.cap = video_capture
+        else:
+            self.cap = cv2.VideoCapture(camera_id)
+        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_5X5_100)
         self.parameters = aruco.DetectorParameters()
         self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
         
@@ -214,8 +217,15 @@ class CameraSensor:
         
     # If there is a new image, calculate a pose estimate from the fiducial tag on the robot.
     def get_pose_estimate(self):
-        ret, frame = self.cap.read()
+        # Try to read a frame a few times
+        for _ in range(5):
+            ret, frame = self.cap.read()
+            if ret:
+                break
+            time.sleep(0.01) # Wait a bit for the camera to be ready
+
         if not ret:
+            print("Failed to grab frame from camera")
             return False, []
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -223,8 +233,8 @@ class CameraSensor:
         if ids is not None:
             # Estimate pose for each detected marker
             for i in range(len(ids)):
-                rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], parameters.marker_length, parameters.camera_matrix, parameters.dist_coeffs)
-                pose_estimate = [tvec[0][0][0], tvec[0][0][1], tvec[0][0][2], rvec[0][0][0], rvec[0][0][1], rvec[0][0][2]]
+                rvec, tvec, _ = my_estimatePoseSingleMarkers(corners[i], parameters.marker_length, parameters.camera_matrix, parameters.dist_coeffs)
+                pose_estimate = [tvec[0][0], tvec[0][1], tvec[0][2], rvec[0][0], rvec[0][1], rvec[0][2]]
             return True, pose_estimate
         
         return False, []
@@ -270,3 +280,32 @@ class RobotSensorSignal:
             sensor_data_list.append(self.distances[i])
         
         return sensor_data_list
+
+
+# Source - https://stackoverflow.com/a/76802895
+# Posted by M lab, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-02-22, License - CC BY-SA 4.0
+
+def my_estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
+    '''
+    This will estimate the rvec and tvec for each of the marker corners detected by:
+       corners, ids, rejectedImgPoints = detector.detectMarkers(image)
+    corners - is an array of detected corners for each detected marker in the image
+    marker_size - is the size of the detected markers
+    mtx - is the camera matrix
+    distortion - is the camera distortion matrix
+    RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
+    '''
+    marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, -marker_size / 2, 0],
+                              [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
+    trash = []
+    rvecs = []
+    tvecs = []
+    for c in corners:
+        nada, R, t = cv2.solvePnP(marker_points, c, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
+        rvecs.append(R)
+        tvecs.append(t)
+        trash.append(nada)
+    return rvecs, tvecs, trash
