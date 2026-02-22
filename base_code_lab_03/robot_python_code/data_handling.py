@@ -7,7 +7,7 @@ import numpy as np
 # Internal Libraries
 import parameters
 import robot_python_code
-import motion_models
+from motion_models import MyMotionModel, State
 
 
 # Open a file and return data in a form ready to plot
@@ -86,7 +86,7 @@ def plot_trial_basics(filename):
 def run_my_model_on_trial(filename, show_plot = True, plot_color = 'ko'):
     time_list, encoder_count_list, velocity_list, steering_angle_list, x_camera_list, y_camera_list, z_camera_list, yaw_camera_list = get_file_data(filename)
     
-    motion_model = motion_models.MyMotionModel([0,0,0], 0)
+    motion_model = MyMotionModel(State(0,0,0), 0)
     x_list, y_list, theta_list = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
 
     plt.plot(x_list, y_list,plot_color)
@@ -111,7 +111,7 @@ def plot_many_trial_predictions(directory):
 # Calculate the predicted distance from single trial for a motion model
 def run_my_model_to_predict_distance(filename):
     time_list, encoder_count_list, velocity_list, steering_angle_list, x_camera_list, y_camera_list, z_camera_list, yaw_camera_list = get_file_data(filename)
-    motion_model = motion_models.MyMotionModel([0,0,0], 0)
+    motion_model = MyMotionModel(State(0,0,0), 0)
     x_list, _, _ = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
     distance = x_list[-30]
     
@@ -120,17 +120,17 @@ def run_my_model_to_predict_distance(filename):
 # Calculate the predicted distance from single trial for a motion model
 def run_my_model_to_predict_state(filename):
     time_list, encoder_count_list, velocity_list, steering_angle_list, x_camera_list, y_camera_list, z_camera_list, yaw_camera_list = get_file_data(filename)
-    motion_model = motion_models.MyMotionModel([0,0,0], 0)
-    x_list, y_list, theta_list, distance_list = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
+    motion_model = MyMotionModel(State(0,0,0), 0)
+    x_list, y_list, theta_list = motion_model.traj_propagation(time_list, encoder_count_list, steering_angle_list)
     
     index_of_end = -30
     x = x_list[index_of_end]
     y = y_list[index_of_end]
     theta = theta_list[index_of_end]
-    distance = distance_list[index_of_end]
+    # distance = distance_list[index_of_end]
     time_stamp = time_list[index_of_end] - time_list[0]
     
-    return time_stamp, x, y, theta, distance
+    return time_stamp, x, y, theta#, distance
 
 # Calculate the differences between two lists, and square them.
 def get_diff_squared(m_list,p_list):
@@ -212,7 +212,8 @@ def process_files_and_plot_curve(files_and_data, directory):
         theta_measured = 2*math.atan2(y_measured_distance, x_measured_distance)
         theta_measured_list.append(theta_measured)
 
-        time_stamp, x_predicted, y_predicted , theta_predicted, distance_predicted = run_my_model_to_predict_state(directory + filename)
+        # time_stamp, x_predicted, y_predicted , theta_predicted, distance_predicted = run_my_model_to_predict_state(directory + filename)
+        time_stamp, x_predicted, y_predicted , theta_predicted = run_my_model_to_predict_state(directory + filename)
         x_predicted_list.append(x_predicted)
         y_predicted_list.append(y_predicted)
         theta_predicted_list.append(theta_predicted)
@@ -220,7 +221,7 @@ def process_files_and_plot_curve(files_and_data, directory):
         w_measured_list.append(theta_measured / time_stamp)
         w_predicted_list.append(theta_predicted / time_stamp)
         print("W:",w_measured_list[-1], w_predicted_list[-1])
-        distance_predicted_list.append(distance_predicted)
+        # distance_predicted_list.append(distance_predicted)
 
     # Plot predicted and measured distance travelled.
     plt.plot(theta_measured_list+[0], theta_predicted_list+[0], 'ko')
@@ -238,8 +239,8 @@ def process_files_and_plot_curve(files_and_data, directory):
 def sample_model(num_samples):
     traj_duration = 10
     for i in range(num_samples):
-        model = motion_models.MyMotionModel([0,0,0], 0)
-        traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
+        model = MyMotionModel(State(0,0,0), 0)
+        _, traj_x, traj_y, traj_theta = model.generate_simulated_traj(traj_duration)
         plt.plot(traj_x, traj_y, 'k.')
 
     plt.title('Sampling the model')
