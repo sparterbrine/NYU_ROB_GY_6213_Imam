@@ -1,4 +1,5 @@
 # External libraries
+import json
 from typing import List, Tuple
 
 import numpy as np
@@ -20,6 +21,7 @@ class ExtendedKalmanFilter:
         self.predicted_state_mean: State = State(0, 0, 0)
         self.predicted_state_covariance = parameters.I3 * 1.0
         self.last_encoder_counts: int = encoder_counts_0
+        self._q_matrix = None
 
     # Call the prediction and correction steps
     def update(self, u_t, z_t, delta_t):
@@ -138,8 +140,14 @@ class ExtendedKalmanFilter:
     # This function returns the Q_t matrix which contains measurement covariance terms.
     def get_Q(self) -> np.ndarray:
         """The covariance matrix for the measurements z_t variance"""
-        # Base confidence constants for [X, Y, Theta] from camera. Tune as needed.
-        return np.diag([0.01, 0.01, 0.01])
+        if self._q_matrix is None:
+            with open('../analysis_code/R_matrix.json', 'r') as f:
+                json_data = json.load(f)
+            
+            R_full = np.array(json_data['matrix'])
+            # We only need x, y, and rot_z for our state
+            self._q_matrix = R_full[np.ix_([0, 1, 5], [0, 1, 5])]
+        return self._q_matrix
 
 class KalmanFilterPlot:
 
