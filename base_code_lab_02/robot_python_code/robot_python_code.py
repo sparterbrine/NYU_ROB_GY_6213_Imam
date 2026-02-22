@@ -279,7 +279,9 @@ class Robot:
     def __init__(self):
         self.connected_to_hardware = False
         self.running_trial = False
+        self.extra_logging = False
         self.trial_start_time = 0
+        self.extra_logging = False
         self.msg_sender = None
         self.msg_receiver = None
         self.camera_sensor = CameraSensor(parameters.camera_id)
