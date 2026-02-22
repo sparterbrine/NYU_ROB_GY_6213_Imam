@@ -10,6 +10,7 @@ import socket
 from time import strftime
 
 # Local libraries
+from motion_models import State
 import parameters
 import extended_kalman_filter
 import robot_python_code
@@ -28,7 +29,7 @@ class Robot:
         self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal = [0,0,0,0,0,0]
-        self.extended_kalman_filter = extended_kalman_filter.ExtendedKalmanFilter(x_0 = [0,0,0], Sigma_0 = parameters.I3 * 10e12, encoder_counts_0 = 0)
+        self.extended_kalman_filter = extended_kalman_filter.ExtendedKalmanFilter(x_0 = State(0, 0, 0), Sigma_0 = parameters.I3 * 10e12, encoder_counts_0 = 0)
         
     # Create udp senders and receiver instances with the udp communication
     def setup_udp_connection(self, udp_communication):
@@ -44,7 +45,9 @@ class Robot:
 
     def update_state_estimate(self):
         u_t = np.array([self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering]) # robot_sensor_signal
-        z_t = np.array([self.camera_sensor_signal[0],self.camera_sensor_signal[1],self.camera_sensor_signal[5]]) # camera_sensor_signal
+        '''Encoder counts, Steering Angle'''
+        z_t = np.array([self.camera_sensor_signal[0], self.camera_sensor_signal[1], self.camera_sensor_signal[5]]) # camera_sensor_signal
+        '''Camera X, Camera Y, Camera Theta'''
         delta_t = 0.1
         self.extended_kalman_filter.update(u_t, z_t, delta_t)
 

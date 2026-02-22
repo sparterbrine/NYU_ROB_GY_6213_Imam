@@ -1,4 +1,6 @@
 # External libraries
+from typing import List, Tuple
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
@@ -12,15 +14,17 @@ from motion_models import distance_travelled_s, rotational_velocity_w, state_pre
 
 # Main class
 class ExtendedKalmanFilter:
-    def __init__(self, x_0, Sigma_0, encoder_counts_0):
-        self.state_mean = np.array(x_0, dtype=float)
+    def __init__(self, x_0: State, Sigma_0, encoder_counts_0: int):
+        self.state_mean: State = x_0
         self.state_covariance = np.array(Sigma_0, dtype=float)
-        self.predicted_state_mean = np.zeros(3)
+        self.predicted_state_mean: State = State(0, 0, 0)
         self.predicted_state_covariance = parameters.I3 * 1.0
-        self.last_encoder_counts = encoder_counts_0
+        self.last_encoder_counts: int = encoder_counts_0
 
     # Call the prediction and correction steps
     def update(self, u_t, z_t, delta_t):
+        """ u_t =Encoder counts, Steering Angle
+         z_t = Camera X, Camera Y, Camera Theta"""
         self.prediction_step(u_t, delta_t)
         self.correction_step(z_t)
         # Update encoder memory for the next step's delta calculation
@@ -28,9 +32,12 @@ class ExtendedKalmanFilter:
 
     # Set the EKF's predicted state mean and covariance matrix
     def prediction_step(self, u_t, delta_t):
+        """ u_t =Encoder counts, Steering Angle"""
         self.predicted_state_mean, s = self.g_function(self.state_mean, u_t, delta_t)
         
-        G_x = self.get_G_x(self.state_mean, s)
+        delta_theta = rotational_velocity_w(u_t[1]) * delta_t
+        '''In Degrees'''
+        G_x = self.get_G_x(self.state_mean, s, delta_theta)
         G_u = self.get_G_u(self.state_mean, delta_t)
         R = self.get_R(s)
         
@@ -38,8 +45,9 @@ class ExtendedKalmanFilter:
 
     # Set the EKF's corrected state mean and covariance matrix
     def correction_step(self, z_t):
+        """ z_t = Camera X, Camera Y, Camera Theta"""
         H = self.get_H()
-        Q = self.get_Q()
+        Q = self.get_Q() #z_t covariance matrix from camera sensor model
         
         # Kalman Gain
         S = H @ self.predicted_state_covariance @ H.T + Q
@@ -57,23 +65,25 @@ class ExtendedKalmanFilter:
         self.state_covariance = (np.eye(3) - K @ H) @ self.predicted_state_covariance
 
     # The nonlinear transition equation that provides new states from past states
-    def g_function(self, x_tm1, u_t, delta_t):
-        delta_encoder = u_t[0] - self.last_encoder_counts
-        s = distance_travelled_s(delta_encoder)
+    def g_function(self, x_tm1: State, u_t: np.ndarray, delta_t: float) -> Tuple[State, float]:
+        encoder_counts, steering_angle_command = u_t
+        delta_encoder: int = encoder_counts - self.last_encoder_counts
+        s: float = distance_travelled_s(delta_encoder)
         
-        w_deg = rotational_velocity_w(u_t[1])
-        delta_theta = w_deg * delta_t
+        w_deg: float = rotational_velocity_w(steering_angle_command)
+        delta_theta: float = w_deg * delta_t
         
-        theta_rad = math.radians(x_tm1[2])
+        theta_rad: float = math.radians(x_tm1.theta)
+        theta_t: float = theta_rad + math.radians(delta_theta)
+        mid_theta: float = (theta_rad + math.radians(delta_theta)) / 2.0
         
-        x_t = x_tm1[0] + s * math.cos(theta_rad)
-        y_t = x_tm1[1] + s * math.sin(theta_rad)
-        theta_t = x_tm1[2] + delta_theta
+        x_t: float = x_tm1.x + s * math.cos(mid_theta)
+        y_t: float = x_tm1.y + s * math.sin(mid_theta)
         
         # Keep theta bounds clean
-        theta_t = (theta_t + 180) % 360 - 180
+        theta_t = (theta_t + math.pi) % (2 * math.pi) - math.pi
         
-        return np.array([x_t, y_t, theta_t]), s
+        return State(x_t, y_t, theta_t), s
     
     # The nonlinear measurement function
     def get_h_function(self, x_t):
@@ -81,19 +91,21 @@ class ExtendedKalmanFilter:
     
     # This function returns a matrix with the partial derivatives dg/dx
     # g outputs x_t, y_t, theta_t, and we take derivatives wrt inputs x_tm1, y_tm1, theta_tm1
-    def get_G_x(self, x_tm1, s):       
-        theta_rad = math.radians(x_tm1[2])
+    def get_G_x(self, x_tm1: State, s: float, delta_theta: float) -> np.ndarray:
+        '''Delta Theta = Degrees'''
+        theta_rad = math.radians(x_tm1.theta)
+        delta_theta_rad = math.radians(delta_theta)
         G_x = np.eye(3)
         
         # Chain rule includes pi/180 because state theta is stored in degrees
-        G_x[0, 2] = -s * math.sin(theta_rad) * (math.pi / 180.0)
-        G_x[1, 2] =  s * math.cos(theta_rad) * (math.pi / 180.0)
+        G_x[0, 2] = -s * math.sin(theta_rad+delta_theta_rad/2) * math.pi/180
+        G_x[1, 2] =  s * math.cos(theta_rad+delta_theta_rad/2) * math.pi/180
         
         return G_x
 
     # This function returns a matrix with the partial derivatives dg/du
-    def get_G_u(self, x_tm1, delta_t):                
-        theta_rad = math.radians(x_tm1[2])
+    def get_G_u(self, x_tm1: State, delta_t: float) -> np.ndarray:                
+        theta_rad = math.radians(x_tm1.theta)
         G_u = np.zeros((3, 3))
         
         # Partial wrt s mapped to col 0
@@ -113,7 +125,8 @@ class ExtendedKalmanFilter:
         return np.eye(3)
     
     # This function returns the R_t matrix which contains transition function covariance terms.
-    def get_R(self, s):
+    def get_R(self, s: float) -> np.ndarray:
+        """The covariance matrix for the control input variance"""
         var_s = 0.00027 * abs(s)
         var_theta = 0.00027 * abs(s)
         
@@ -123,7 +136,8 @@ class ExtendedKalmanFilter:
         return R
 
     # This function returns the Q_t matrix which contains measurement covariance terms.
-    def get_Q(self):
+    def get_Q(self) -> np.ndarray:
+        """The covariance matrix for the measurements z_t variance"""
         # Base confidence constants for [X, Y, Theta] from camera. Tune as needed.
         return np.diag([0.01, 0.01, 0.01])
 
@@ -166,7 +180,7 @@ def offline_efk():
     ekf_data = data_handling.get_file_data_for_kf(filename)
 
     # Instantiate PF with no initial guess
-    x_0 = [ekf_data[0][3][0]+.5, ekf_data[0][3][1], ekf_data[0][3][5]]
+    x_0 = State(ekf_data[0][3][0]+.5, ekf_data[0][3][1], ekf_data[0][3][5])
     Sigma_0 = parameters.I3
     encoder_counts_0 = ekf_data[0][2].encoder_counts
     extended_kalman_filter = ExtendedKalmanFilter(x_0, Sigma_0, encoder_counts_0)

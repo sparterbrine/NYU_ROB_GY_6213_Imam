@@ -1,5 +1,6 @@
 import math
 import random
+from typing import List, Tuple
 import numpy as np
 
 # --- Motion Model Constants ---
@@ -13,17 +14,17 @@ VAR_S_COEFF: float = 0.002
 VAR_W_CONST: float = 0.0015
 
 # --- Helper Functions (Simulation) ---
-def variance_distance_travelled_s(distance) -> float:
+def variance_distance_travelled_s(distance: float) -> float:
     return VAR_S_COEFF * abs(distance)
 
-def distance_travelled_s(encoder_counts) -> float:
+def distance_travelled_s(encoder_counts: int) -> float:
     return encoder_counts * K_ENC
 
-def variance_rotational_velocity_w(distance) -> float:
+def variance_rotational_velocity_w(distance: float) -> float:
         return VAR_W_CONST
 
 
-def rotational_velocity_w(steering_angle_command) -> float:
+def rotational_velocity_w(steering_angle_command: float) -> float:
     slope: float = 2.25
     intercept: float= -0.66
     
@@ -81,9 +82,7 @@ class MyMotionModel:
         self.last_encoder_count: int = last_encoder_count
 
     def step_update(self, encoder_counts: int, steering_angle_command: int, delta_t: float) -> State:
-        # 1. Calculate Distance (ds)
-        delta_enc = encoder_counts - self.last_encoder_count
-        ds = distance_travelled_s(delta_enc)
+        delta_enc: int = encoder_counts - self.last_encoder_count
 
         self.state = state_prediction(self.state, [0, steering_angle_command], delta_enc)
         self.last_encoder_count = encoder_counts
@@ -92,10 +91,10 @@ class MyMotionModel:
     
     # This is a great tool to take in data from a trial and iterate over the data to create 
     # a robot trajectory in the global frame, using your motion model.
-    def traj_propagation(self, time_list, encoder_count_list, steering_angle_list):
-        x_list = [self.state.x]
-        y_list = [self.state.y]
-        theta_list = [self.state.theta]
+    def traj_propagation(self, time_list: List[float], encoder_count_list: List[int], steering_angle_list: List[int]) -> Tuple[List[float], List[float], List[float]]:
+        x_list: List[float] = [self.state.x]
+        y_list: List[float] = [self.state.y]
+        theta_list: List[float] = [self.state.theta]
         self.last_encoder_count = encoder_count_list[0]
         for i in range(1, len(encoder_count_list)):
             delta_t: float = time_list[i] - time_list[i-1]
