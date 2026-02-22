@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import math
 import numpy as np
-
+from matplotlib.patches import Ellipse
 # Internal Libraries
 import parameters
 import robot_python_code
@@ -140,8 +140,96 @@ def sample_model(num_samples):
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
     plt.show()
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+import math
+import random
 
+# Ensure you have your motion_models imported or defined above
+# import motion_models 
 
+def sim_trial(num_simulations=100, traj_duration=2):
+    plt.figure(figsize=(10, 6))
+    
+    final_points = []
+    # Use a colormap to differentiate trajectories
+    colors = plt.cm.jet(np.linspace(0, 1, num_simulations))
+
+    # --- 1. Run Simulations ---
+    for i in range(num_simulations):
+        # Initialize model
+        model = motion_models.MyMotionModel([0, 0, 0], 0)
+        
+        # Run simulation
+        _, traj_x, traj_y, _ = model.generate_simulated_traj(traj_duration)
+        
+        if not traj_x: continue
+            
+        # Plot path (faint)
+        plt.plot(traj_x, traj_y, '-', color=colors[i], alpha=0.1, linewidth=1)
+        
+        # Plot final dot (solid)
+        plt.plot(traj_x[-1], traj_y[-1], '.', color=colors[i], alpha=0.6, markersize=3)
+        
+        # Store final (x, y)
+        final_points.append([traj_x[-1], traj_y[-1]])
+
+    final_points = np.array(final_points)
+
+    # --- 2. Calculate 2-Sigma Statistics ---
+    if len(final_points) > 1:
+        # Calculate Mean and Covariance
+        mean = np.mean(final_points, axis=0)
+        cov = np.cov(final_points, rowvar=False)
+        
+        # Get eigenvalues (variance) and eigenvectors (rotation)
+        lambda_, v = np.linalg.eig(cov)
+        lambda_ = np.sqrt(lambda_) # Convert variance to std dev
+        
+        # Sort so the largest spread is mapped to width (major axis)
+        idx = np.argmax(lambda_)
+        angle = np.degrees(np.arctan2(v[1, idx], v[0, idx]))
+        
+        # SCALE FACTOR: 2 Standard Deviations
+        # Width/Height = 2 * (2 * sigma)
+        scale_factor = 2
+        width = 2 * (scale_factor * lambda_[idx])
+        height = 2 * (scale_factor * lambda_[1-idx])
+
+        # Draw the 2-Sigma Ellipse
+        ell = Ellipse(xy=mean, width=width, height=height, angle=angle, 
+                      edgecolor='black', fc='None', lw=2, linestyle='--', label='2-Sigma Boundary')
+        plt.gca().add_patch(ell)
+        
+        # --- 3. Calculate Percentage Inside ---
+        # We use Mahalanobis distance. For 2-sigma, the threshold is 2^2 = 4.
+        inv_cov = np.linalg.inv(cov)
+        inside_count = 0
+        
+        for p in final_points:
+            diff = p - mean
+            # Calculate Mahalanobis distance squared: (x-u)'S^-1(x-u)
+            dist_sq = diff.T @ inv_cov @ diff
+            
+            # Check if inside 2-sigma (dist <= 2, so dist^2 <= 4)
+            if dist_sq <= 4.0:
+                inside_count += 1
+                
+        percent_inside = (inside_count / len(final_points)) * 100
+        
+        # Plot Mean
+        plt.plot(mean[0], mean[1], 'kx', markersize=10, markeredgewidth=2, label='Mean Position')
+        
+        # Update Title
+        plt.title(f'Simulations: {num_simulations} | Inside 2-Sigma: {percent_inside:.1f}% (Expected ~86.5%)')
+
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.axis('equal')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 ######### MAIN ########
 
 # Some sample data to test with
@@ -162,15 +250,15 @@ if False:
     run_my_model_on_trial(filename)
 
 # Plot the motion model predictions for each trial in a folder
-if True:
+if False:
     directory = ('./data/')
     plot_many_trial_predictions(directory)
 
 # A list of files to open, process, and plot - for comparing predicted with actual distances
-if True:
+if False:
     directory = ('./data/')    
     process_files_and_plot(files_and_data, directory)
 
 # Try to sample with the motion model
-if False:
-    sample_model(200)
+if True:
+    sim_trial(200)
