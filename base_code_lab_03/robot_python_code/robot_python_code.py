@@ -296,16 +296,10 @@ def my_estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
     distortion - is the camera distortion matrix
     RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
     '''
-    # marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
-    #                           [marker_size / 2, marker_size / 2, 0],
-    #                           [marker_size / 2, -marker_size / 2, 0],
-    #                           [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
-    marker_points = np.array([
-    [-marker_size / 2,  marker_size / 2, 0], # Top-left
-    [ marker_size / 2,  marker_size / 2, 0], # Top-right
-    [ marker_size / 2, -marker_size / 2, 0], # Bottom-right
-    [-marker_size / 2, -marker_size / 2, 0]  # Bottom-left
-    ], dtype=np.float32)
+    marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, marker_size / 2, 0],
+                              [marker_size / 2, -marker_size / 2, 0],
+                              [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
     trash = []
     rvecs = []
     tvecs = []

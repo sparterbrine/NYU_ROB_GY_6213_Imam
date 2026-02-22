@@ -13,28 +13,30 @@ bufferSize = 1024
 camera_id = 2
 marker_length = 0.094488 # meters
 ''' ArUco marker parameters from calibration - the length of the entire thing(not a pixel in it) '''
-camera_matrix = np.array([[
-            1538.7939968143703,
+camera_matrix = np.array([
+        [
+            682.4174696857553,
             0.0,
-            829.2140966459408
+            260.6779690883052
         ],
         [
             0.0,
-            1537.2558443313133,
-            577.1496540648694
+            683.5970425159574,
+            252.2280650657449
         ],
         [
             0.0,
             0.0,
             1.0
-        ]], dtype=np.float32)
+        ]
+    ], dtype=np.float64)
 dist_coeffs = np.array([
-            -0.3965206668901596,
-            0.1469937626365962,
-            -0.0007861794226302347,
-            0.0022527358131867437,
-            -0.02308737414959782
-        ], dtype=np.float32)
+            -0.3677610637638757,
+            0.07099775179738238,
+            -0.0007576824618998384,
+            0.0028280822538041144,
+            0.06022962819399466
+        ], dtype=np.float64)
 
 
 # Robot parameters
