@@ -7,31 +7,30 @@ import random
 
 # A function for obtaining variance in distance travelled as a function of distance travelled
 def variance_distance_travelled_s(distance):
-    # Add student code here
-    var_s = 1
-
+    var_s = 0.00027 * distance
     return var_s
-
 # Function to calculate distance from encoder counts
-def distance_travelled_s(encoder_counts):
+def distance_travelled_s(encoder_counts): # In meters
     # Add student code here
-    s = 0
+    s = 0.000294 * encoder_counts
 
     return s
 
+
 # A function for obtaining variance in distance travelled as a function of distance travelled
 def variance_rotational_velocity_w(distance):
-    # Add student code here
-    var_w = 1
-
-    return var_w
-
-def rotational_velocity_w(steering_angle_command: int) -> float:
-    slope: float = 2.25
-    intercept: float= -0.66
+    k = 0.00027
     
-    w: float = (slope * steering_angle_command) + intercept
-    w = w*(-1)
+    var_dist = k * distance
+
+    return var_dist
+
+def rotational_velocity_w(steering_angle_command):
+    slope = 2.25
+    intercept = -0.66
+    
+    w = (slope * steering_angle_command) + intercept
+    
     return w
 
 class State:
@@ -86,15 +85,62 @@ class MyMotionModel:
 
     # Coming soon
     def generate_simulated_traj(self, duration):
+        # FIX: Ensure state is a State object
+        if isinstance(self.state, list):
+            self.state = State(self.state[0], self.state[1], self.state[2])
+
         delta_t = 0.1
         t_list = []
         x_list = []
         y_list = []
         theta_list = []
         t = 0
-        encoder_counts = 0
-        while t < duration:
+        
+        # Initialize lists
+        x_list.append(self.state.x)
+        y_list.append(self.state.y)
+        theta_list.append(self.state.theta)
+        t_list.append(t)
 
+        # --- Simulation Command Parameters ---
+        # Constant speed
+        cmd_velocity = 0.3 
+        # Random steering command per trajectory (-20 to 20 degrees)
+        cmd_steering = 4 
+
+        while t < duration:
             t += delta_t 
-        return t_list, x_list, y_list, theta_list
+
+            # 1. Add Random Noise (Process Noise)
+            # We add noise to the *command* to simulate real-world execution error
             
+            # Velocity noise: mean=0.3, std_dev=0.05
+            noisy_v = random.gauss(cmd_velocity, 0.05) 
+            
+            # Steering noise: mean=random_angle, std_dev=2.0 degrees
+            noisy_steering = random.gauss(cmd_steering, 2.0)
+
+            # 2. Calculate Displacement
+            distance_travelled = noisy_v * delta_t
+            
+            # 3. Calculate Rotation
+            w = rotational_velocity_w(noisy_steering) 
+            delta_theta = w * delta_t
+
+            # 4. Update State (Kinematics)
+            mid_theta_rad = math.radians(self.state.theta + delta_theta / 2.0)
+            
+            delta_x = distance_travelled * math.cos(mid_theta_rad)
+            delta_y = distance_travelled * math.sin(mid_theta_rad)
+
+            self.state.x += delta_x
+            self.state.y += delta_y
+            self.state.theta += delta_theta
+
+            # 5. Store Data
+            x_list.append(self.state.x)
+            y_list.append(self.state.y)
+            theta_list.append(self.state.theta)
+            t_list.append(t)
+
+        return t_list, x_list, y_list, theta_list
