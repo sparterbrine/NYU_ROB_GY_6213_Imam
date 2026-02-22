@@ -39,7 +39,40 @@ class State:
         self.theta: float= theta
         '''In Degrees'''
 
-# This class is an example structure for implementing your motion model.
+def state_prediction(state: State, control_vector, delta_enc: int) -> State:
+    steering_angle_command = control_vector[1]
+    
+    # 1. Calculate Distance (ds)
+    ds = distance_travelled_s(delta_enc)
+    
+    # 2. Calculate Steering Angle (alpha)
+    # Assuming the slider (-20 to 20) represents degrees of steering
+    alpha = steering_angle_command * (math.pi / 180.0)
+
+    # 4. Propagate State using KINEMATIC BICYCLE MODEL
+    # Formula: change_in_theta = (distance / wheelbase) * tan(steering_angle)
+    
+    if abs(alpha) < 0.001: 
+        # If moving straight (avoid divide by zero)
+        x_new = state.x + ds * math.cos(state.theta)
+        y_new = state.y + ds * math.sin(state.theta)
+        theta_new = state.theta
+    else:
+        # Turning
+        d_theta = (ds / L) * math.tan(alpha)
+        
+        # Use Half-Angle formula for better accuracy (Runge-Kutta 2nd Order)
+        theta_mid = state.theta + (d_theta / 2.0)
+        
+        x_new = state.x + ds * math.cos(theta_mid)
+        y_new = state.y + ds * math.sin(theta_mid)
+        theta_new = state.theta + d_theta
+
+    # Normalize Angle (-pi to pi)
+    theta_new = (theta_new + math.pi) % (2 * math.pi) - math.pi
+
+    return State(x_new, y_new, theta_new)
+
 class MyMotionModel:
 
     def __init__(self, initial_state: State, last_encoder_count: int):
@@ -51,41 +84,11 @@ class MyMotionModel:
         # 1. Calculate Distance (ds)
         delta_enc = encoder_counts - self.last_encoder_count
         ds = distance_travelled_s(delta_enc)
-        
-        # 2. Calculate Steering Angle (alpha)
-        # Assuming the slider (-20 to 20) represents degrees of steering
-        alpha = steering_angle_command * (math.pi / 180.0)
 
-        # 3. Extract current state
-        x, y, theta = self.state.x, self.state.y, self.state.theta
-
-        # 4. Propagate State using KINEMATIC BICYCLE MODEL
-        # Formula: change_in_theta = (distance / wheelbase) * tan(steering_angle)
-        
-        if abs(alpha) < 0.001: 
-            # If moving straight (avoid divide by zero)
-            x_new = x + ds * math.cos(theta)
-            y_new = y + ds * math.sin(theta)
-            theta_new = theta
-        else:
-            # Turning
-            d_theta = (ds / L) * math.tan(alpha)
-            
-            # Use Half-Angle formula for better accuracy (Runge-Kutta 2nd Order)
-            theta_mid = theta + (d_theta / 2.0)
-            
-            x_new = x + ds * math.cos(theta_mid)
-            y_new = y + ds * math.sin(theta_mid)
-            theta_new = theta + d_theta
-
-        # Normalize Angle (-pi to pi)
-        theta_new = (theta_new + math.pi) % (2 * math.pi) - math.pi
-
-        # 5. Update internal state
-        self.state = State(x_new, y_new, theta_new)
+        self.state = state_prediction(self.state, [0, steering_angle_command], delta_enc)
         self.last_encoder_count = encoder_counts
         
-        return State(x_new, y_new, theta_new)
+        return self.state
     
     # This is a great tool to take in data from a trial and iterate over the data to create 
     # a robot trajectory in the global frame, using your motion model.
