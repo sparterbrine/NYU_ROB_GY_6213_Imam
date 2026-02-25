@@ -35,12 +35,12 @@ class ExtendedKalmanFilter:
     # Set the EKF's predicted state mean and covariance matrix
     def prediction_step(self, u_t, delta_t):
         """ u_t =Encoder counts, Steering Angle"""
-        self.predicted_state_mean, s = self.g_function(self.state_mean, u_t, delta_t)
+        self.predicted_state_mean, s = self.g_function(self.state_mean, u_t, delta_t) # s here is the calculated distance travelled based on the change in encoder counts, which is an intermediate variable needed for the Jacobian calculations below
         
         delta_theta = rotational_velocity_w(u_t[1]) * delta_t
         '''In Degrees'''
         G_x = self.get_G_x(self.state_mean, s, delta_theta)
-        G_u = self.get_G_u(self.state_mean, delta_t)
+        G_u = self.get_G_u(self.state_mean, s, delta_theta)
         R = self.get_R(s)
         
         self.predicted_state_covariance = G_x @ self.state_covariance @ G_x.T + G_u @ R @ G_u.T
@@ -106,20 +106,38 @@ class ExtendedKalmanFilter:
         return G_x
 
     # This function returns a matrix with the partial derivatives dg/du
-    def get_G_u(self, x_tm1: State, delta_t: float) -> np.ndarray:                
-        theta_rad = math.radians(x_tm1.theta)
+    def get_G_u(self, x_tm1: State, s: float, delta_theta: float) -> np.ndarray:
+        '''u_t is encoder counts and steering angle command, but we take derivatives wrt the intermediate variables s and delta_theta because those are the direct inputs to the state transition function'''
+        """state is [x_g, y_g, theta_g]"""
+        '''# Turning
+        d_theta = (ds / L) * math.tan(alpha)
+
+        # Use Half-Angle formula for better accuracy (Runge-Kutta 2nd Order)
+        theta_mid = state.theta + (d_theta / 2.0)
+
+        x_new = state.x + ds * math.cos(theta_mid)
+        y_new = state.y + ds * math.sin(theta_mid)
+        theta_new = state.theta + d_theta'''
+                        
+        d_theta = math.radians(delta_theta)
+        theta_t = math.radians(x_tm1.theta)
         G_u = np.zeros((3, 3))
-        
+
         # Partial wrt s mapped to col 0
-        G_u[0, 0] = math.cos(theta_rad)
-        G_u[1, 0] = math.sin(theta_rad)
+        # x_t, y_t, theta_t wrt  s (speed)
+        G_u[0, 0] = math.cos(theta_t + d_theta/2)
+        G_u[1, 0] = math.sin(theta_t + d_theta/2)
         G_u[2, 0] = 0.0
-        
+
+
         # Partial wrt delta_theta mapped to col 1
-        G_u[0, 1] = 0.0
-        G_u[1, 1] = 0.0
+        # x_t, y_t, theta_t wrt delta_theta (rotational velocity)
+        G_u[0, 1] = -(s/2) * math.sin(theta_t + d_theta/2) * math.pi/180
+        G_u[1, 1] =  (s/2) * math.cos(theta_t + d_theta/2) * math.pi/180
         G_u[2, 1] = 1.0
-        
+
+
+
         return G_u
 
     # This function returns the matrix dh_t/dx_t
