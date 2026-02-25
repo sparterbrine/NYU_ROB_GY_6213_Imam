@@ -2,12 +2,14 @@ import cv2
 import cv2.aruco as aruco
 import numpy as np
 
+from base_code_lab_03.robot_python_code import parameters
+
 # --- 1. SETUP CAMERA PARAMETERS ---
 # Replace these with your 'parameters.camera_matrix' and 'parameters.dist_coeffs'
 # Using dummy values here so the script runs out-of-the-box for testing.
-camera_matrix = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]], dtype=np.float32)
-dist_coeffs = np.zeros((5, 1), dtype=np.float32)
-marker_length = 0.05  # 5 centimeters (adjust to your actual marker size)
+camera_matrix = parameters.camera_matrix
+dist_coeffs = parameters.dist_coeffs
+marker_length: float = parameters.marker_length  # meters
 
 # Define the 3D coordinates of the marker corners in its own coordinate system
 obj_points = np.array([

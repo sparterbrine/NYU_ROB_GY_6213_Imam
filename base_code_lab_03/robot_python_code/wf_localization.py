@@ -1,15 +1,20 @@
+from typing import Dict
+
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-im
+
+from base_code_lab_03.robot_python_code import parameters
+
 
 # --- 1. SETUP PARAMETERS ---
-camera_matrix = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]], dtype=np.float32)
-dist_coeffs = np.zeros((5, 1), dtype=np.float32)
-marker_length = 0.05  # meters
+camera_matrix = parameters.camera_matrix
+dist_coeffs = parameters.dist_coeffs
+marker_length: float = parameters.marker_length
+'''[m]'''
 
 # Dictionary of known markers: ID -> (x, y, yaw_degrees)
-KNOWN_MARKERS = {
+KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
     1: {'x': 1.05, 'y': -0.85, 'yaw': 0},
     3: {'x': 1.05, 'y': -0.95, 'yaw': 90},
     6: {'x': 1.05, 'y': 0.05,  'yaw': 90},
@@ -21,6 +26,7 @@ ROBOT_MARKER_ID = 7
 
 # --- 2. HELPER FUNCTIONS ---
 def get_marker_corners_world(x, y, yaw_deg, marker_length):
+    """Returns the 4 corners of a marker in world coordinates given its center (x, y) and orientation (yaw)."""
     half_l = marker_length / 2.0
     local_corners = np.array([
         [-half_l,  half_l, 0],
@@ -29,7 +35,8 @@ def get_marker_corners_world(x, y, yaw_deg, marker_length):
         [-half_l, -half_l, 0]
     ])
     
-    theta = np.radians(yaw_deg)
+    theta: float = np.radians(yaw_deg)
+    '''[rad]'''
     c, s = np.cos(theta), np.sin(theta)
     Rz = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
     
