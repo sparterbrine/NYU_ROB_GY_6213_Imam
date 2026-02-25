@@ -15,12 +15,12 @@ marker_length: float = parameters.marker_length
 
 # Dictionary of known markers: ID -> (x, y, yaw_degrees)
 KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
-    1: {'x': 1.05, 'y': -0.85, 'yaw': 0},
-    3: {'x': 1.05, 'y': -0.95, 'yaw': 90},
-    6: {'x': 1.05, 'y': 0.05,  'yaw': 90},
-    2: {'x': 2.05, 'y': 0.05,  'yaw': 0},
-    4: {'x': 3.05, 'y': -0.85, 'yaw': 180},
-    5: {'x': 3.05, 'y': 0.95,  'yaw': 90},
+    1: {'x': 1.05, 'y': 0.85, 'yaw': 0}, #Close Left
+    3: {'x': 1.05, 'y': -0.95, 'yaw': 90}, #Close Right
+    6: {'x': 1.05, 'y': 0.05,  'yaw': 90}, #Close Center
+    2: {'x': 2.05, 'y': 0.05,  'yaw': 0}, #Mid Center
+    4: {'x': 3.05, 'y': 0.85, 'yaw': 180}, #Far Left
+    5: {'x': 3.05, 'y': -0.95,  'yaw': 90}, #Far Right
 }
 ROBOT_MARKER_ID = 7
 
