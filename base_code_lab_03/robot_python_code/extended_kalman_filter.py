@@ -11,7 +11,7 @@ from matplotlib.patches import Ellipse
 import parameters
 import data_handling
 
-from motion_models import distance_travelled_s, rotational_velocity_w, state_prediction, State
+from motion_models import distance_travelled_s, rotational_velocity_w, state_prediction, State, variance_distance_travelled_s, variance_rotational_velocity_w
 
 # Main class
 class ExtendedKalmanFilter:
@@ -89,6 +89,7 @@ class ExtendedKalmanFilter:
     
     # The nonlinear measurement function
     def get_h_function(self, x_t):
+        """In this case, the measurement function is the identity function because our measurements directly observe the state variables (x, y, theta) without any nonlinear transformation."""
         return x_t
     
     # This function returns a matrix with the partial derivatives dg/dx
@@ -107,8 +108,8 @@ class ExtendedKalmanFilter:
 
     # This function returns a matrix with the partial derivatives dg/du
     def get_G_u(self, x_tm1: State, s: float, delta_theta: float) -> np.ndarray:
-        '''u_t is encoder counts and steering angle command, but we take derivatives wrt the intermediate variables s and delta_theta because those are the direct inputs to the state transition function'''
-        """state is [x_g, y_g, theta_g]"""
+        """u_t is encoder counts and steering angle command, but we take derivatives wrt the intermediate variables s and delta_theta because those are the direct inputs to the state transition function"""
+        '''state is [x_g, y_g, theta_g]'''
         '''# Turning
         d_theta = (ds / L) * math.tan(alpha)
 
@@ -121,19 +122,20 @@ class ExtendedKalmanFilter:
                         
         d_theta = math.radians(delta_theta)
         theta_t = math.radians(x_tm1.theta)
+        theta_mid: float = theta_t + d_theta/2.
         G_u = np.zeros((3, 3))
 
         # Partial wrt s mapped to col 0
         # x_t, y_t, theta_t wrt  s (speed)
-        G_u[0, 0] = math.cos(theta_t + d_theta/2)
-        G_u[1, 0] = math.sin(theta_t + d_theta/2)
+        G_u[0, 0] = math.cos(theta_mid)
+        G_u[1, 0] = math.sin(theta_mid)
         G_u[2, 0] = 0.0
 
 
         # Partial wrt delta_theta mapped to col 1
         # x_t, y_t, theta_t wrt delta_theta (rotational velocity)
-        G_u[0, 1] = -(s/2) * math.sin(theta_t + d_theta/2) * math.pi/180
-        G_u[1, 1] =  (s/2) * math.cos(theta_t + d_theta/2) * math.pi/180
+        G_u[0, 1] = -(s/2) * math.sin(theta_mid) * math.pi/180
+        G_u[1, 1] =  (s/2) * math.cos(theta_mid) * math.pi/180
         G_u[2, 1] = 1.0
 
 
@@ -142,15 +144,16 @@ class ExtendedKalmanFilter:
 
     # This function returns the matrix dh_t/dx_t
     def get_H(self):
+        """In this case, the measurement function is the identity function, so the Jacobian is just the identity matrix."""
         return np.eye(3)
     
     # This function returns the R_t matrix which contains transition function covariance terms.
     def get_R(self, s: float) -> np.ndarray:
         """The covariance matrix for the control input variance"""
-        var_s = 0.00027 * abs(s)
-        var_theta = 0.00027 * abs(s)
+        var_s = variance_distance_travelled_s(s)
+        var_theta = variance_rotational_velocity_w(s)
         
-        R = np.zeros((3, 3))
+        R = np.zeros((2, 2))
         R[0, 0] = var_s + 1e-8      # Small epsilon prevents singular matrix errors
         R[1, 1] = var_theta + 1e-8 
         return R
@@ -158,14 +161,13 @@ class ExtendedKalmanFilter:
     # This function returns the Q_t matrix which contains measurement covariance terms.
     def get_Q(self) -> np.ndarray:
         """The covariance matrix for the measurements z_t variance"""
-        if self._q_matrix is None:
-            with open('../analysis_code/R_matrix.json', 'r') as f:
-                json_data = json.load(f)
-            
-            R_full = np.array(json_data['matrix'])
-            # We only need x, y, and rot_z for our state
-            self._q_matrix = R_full[np.ix_([0, 1, 5], [0, 1, 5])]
-        return self._q_matrix
+
+        #Received from many tests - multiple robot positions, 360, multiple camera heights.
+        return np.array([
+            [0.002898, 0.000115, 0.005556],
+            [0.000115, 0.004000, 0.007781],
+            [0.005556, 0.007781, 20.589390]
+        ])
 
 class KalmanFilterPlot:
 
