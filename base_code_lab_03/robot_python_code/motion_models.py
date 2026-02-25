@@ -106,7 +106,7 @@ class MyMotionModel:
         return x_list, y_list, theta_list
     
 
-    # Coming soon
+
     def generate_simulated_traj(self, duration):
         delta_t = 0.1
         t = 0
