@@ -1,4 +1,5 @@
 # External libraries
+
 import serial
 import time
 import pickle
@@ -8,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import socket
 from time import strftime
+import os
 
 # Local libraries
 import parameters
@@ -57,8 +59,12 @@ class DataLogger:
 
     # Constructor
     def __init__(self, filename_start, data_name_list):
-        self.filename_start = filename_start
-        self.filename = filename_start
+        # Get the absolute path to the data directory relative to this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(script_dir, 'data')
+        self.data_dir = data_dir
+        self.filename_start = os.path.join(self.data_dir, os.path.basename(filename_start))
+        self.filename = self.filename_start
         self.line_count = 0
         self.dictionary = {}
         self.data_name_list = data_name_list
@@ -69,6 +75,8 @@ class DataLogger:
 
     # Open the log file
     def reset_logfile(self, control_signal):
+        # Ensure the data directory exists
+        os.makedirs(self.data_dir, exist_ok=True)
         self.filename = self.filename_start + "_"+str(control_signal[0])+"_"+str(control_signal[1]) + strftime("_%d_%m_%y_%H_%M_%S.pkl")
         self.dictionary = {}
         for name in self.data_name_list:
