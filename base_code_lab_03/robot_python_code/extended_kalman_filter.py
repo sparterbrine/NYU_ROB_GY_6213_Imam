@@ -28,7 +28,7 @@ class ExtendedKalmanFilter:
         """ u_t =Encoder counts, Steering Angle
          z_t = Camera X, Camera Y, Camera Theta"""
         self.prediction_step(u_t, delta_t)
-        self.correction_step(z_t)
+        self.correction_step(State(z_t[0], z_t[1], z_t[2]))
         # Update encoder memory for the next step's delta calculation
         self.last_encoder_counts = u_t[0] 
 
@@ -46,8 +46,8 @@ class ExtendedKalmanFilter:
         self.predicted_state_covariance = G_x @ self.state_covariance @ G_x.T + G_u @ R @ G_u.T
 
     # Set the EKF's corrected state mean and covariance matrix
-    def correction_step(self, z_t):
-        """ z_t = Camera X, Camera Y, Camera Theta"""
+    def correction_step(self, z_t: State):
+        """ z_t = State = Camera X, Camera Y, Camera Theta"""
         H = self.get_H()
         Q = self.get_Q() #z_t covariance matrix from camera sensor model
         
@@ -57,13 +57,14 @@ class ExtendedKalmanFilter:
         
         # Innovation (Difference between measurement and prediction)
         z_pred = self.get_h_function(self.predicted_state_mean)
-        innovation = z_t - z_pred
+        innovation: State = z_t - z_pred
         
         # Wrap angle innovation to [-180, 180] to prevent spinning errors
-        innovation[2] = (innovation[2] + 180) % 360 - 180
+        innovation.theta = (innovation.theta + 180) % 360 - 180
         
         # Update State and Covariance
-        self.state_mean = self.predicted_state_mean + K @ innovation
+        state_np_array = K @ np.array([innovation.x, innovation.y, innovation.theta])
+        self.state_mean = self.predicted_state_mean + State(state_np_array[0], state_np_array[1], state_np_array[2])
         self.state_covariance = (np.eye(3) - K @ H) @ self.predicted_state_covariance
 
     # The nonlinear transition equation that provides new states from past states

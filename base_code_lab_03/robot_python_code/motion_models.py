@@ -40,6 +40,13 @@ class State:
         self.theta: float= theta
         '''In Degrees'''
 
+    def __sub__(self, other: "State") -> "State":
+        return State(self.x - other.x, self.y - other.y, self.theta - other.theta)
+    
+    
+    def __add__(self, other: "State") -> "State":
+        return State(self.x + other.x, self.y + other.y, self.theta + other.theta)
+
 def state_prediction(state: State, control_vector, delta_enc: int) -> State:
     steering_angle_command = control_vector[1]
     
