@@ -17,6 +17,8 @@ import os
 import parameters
 from aruco_pose_estimator import ArucoPoseEstimator
 
+from filters import ThetaFilter
+
 
 # Function to try to connect to the robot via udp over wifi
 def create_udp_communication(arduinoIP, localIP, arduinoPort, localPort, bufferSize):
@@ -221,9 +223,7 @@ class CameraSensor:
             known_markers=parameters.KNOWN_MARKERS,
             robot_marker_id=7
         )
-        # self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_5X5_100)
-        # self.parameters = aruco.DetectorParameters()
-        # self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
+        self.theta_filter = ThetaFilter()
         
     # Get a new pose estimate from a camera image
     def get_signal(self, last_camera_signal: List[float]) -> List[float]:
@@ -231,6 +231,7 @@ class CameraSensor:
         ret, pose_estimate = self.get_pose_estimate()
         if ret:
             camera_signal = pose_estimate
+            camera_signal[5] = self.theta_filter.filter_pose_theta(camera_signal[5])
         
         return camera_signal
         

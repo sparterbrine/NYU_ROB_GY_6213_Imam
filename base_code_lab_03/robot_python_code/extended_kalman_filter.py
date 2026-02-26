@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
 # Local libraries
+from filters import ThetaFilter
 import parameters
 import data_handling
 
@@ -233,6 +234,7 @@ def offline_efk():
     filtered_x_list: List[float] = []
     filtered_y_list: List[float] = []
     filtered_theta_list: List[float] = []
+    theta_filter = ThetaFilter()
 
     # Loop over sim data
     for t in range(1, len(ekf_data)):
@@ -240,6 +242,7 @@ def offline_efk():
         delta_t = ekf_data[t][0] - ekf_data[t-1][0] # time step size
         u_t = np.array([row[2].encoder_counts, row[2].steering]) # robot_sensor_signal
         z_t = np.array([row[3][0],row[3][1],row[3][5]]) # camera_sensor_signal
+        z_t[2] = theta_filter.filter_pose_theta(z_t[2]) # Filter camera theta measurements to remove outliers
 
         # Run the EKF for a time step
         predicted_state: State = extended_kalman_filter.update(u_t, z_t, delta_t)
