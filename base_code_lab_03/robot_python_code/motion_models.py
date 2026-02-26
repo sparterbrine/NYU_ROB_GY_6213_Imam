@@ -111,7 +111,6 @@ def state_prediction(state: State, control_vector, delta_enc: int) -> State:
     return State(x_new, y_new, theta_new)
 
 class MyMotionModel:
-
     def __init__(self, initial_state: State, last_encoder_count: int):
         # state = [x, y, theta]
         self.state: State = initial_state

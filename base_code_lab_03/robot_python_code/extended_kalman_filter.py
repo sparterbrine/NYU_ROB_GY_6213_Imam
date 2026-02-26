@@ -184,15 +184,15 @@ class KalmanFilterPlot:
         # Plot covariance ellipse
         lambda_, v = np.linalg.eig(state_covaraiance)
         lambda_ = np.sqrt(lambda_)
-        xy = (state_mean[0], state_mean[1])
+        xy = (state_mean.x, state_mean.y)
         angle=np.rad2deg(np.arctan2(*v[:,0][::-1]))
         ell = Ellipse(xy, alpha=0.5, facecolor='red',width=lambda_[0], height=lambda_[1], angle = angle)
         ax = self.fig.gca()
         ax.add_artist(ell)
         
         # Plot state estimate
-        plt.plot(state_mean[0], state_mean[1],'ro')
-        plt.plot([state_mean[0], state_mean[0]+ self.dir_length*math.cos(state_mean[2]) ], [state_mean[1], state_mean[1]+ self.dir_length*math.sin(state_mean[2]) ],'r')
+        plt.plot(state_mean.x, state_mean.y,'ro')
+        plt.plot([state_mean.x, state_mean.x+ self.dir_length*math.cos(state_mean.theta) ], [state_mean.y, state_mean.y+ self.dir_length*math.sin(state_mean.theta) ],'r')
         plt.xlabel('X(m)')
         plt.ylabel('Y(m)')
         plt.axis([-0.25, 2, -1, 1])
