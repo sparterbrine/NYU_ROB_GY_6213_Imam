@@ -11,6 +11,7 @@ from time import strftime
 
 # Local libraries
 import parameters
+from aruco_pose_estimator import ArucoPoseEstimator
 
 
 # Function to try to connect to the robot via udp over wifi
@@ -64,6 +65,7 @@ class DataLogger:
         for name in data_name_list:
             self.dictionary[name] = []
         self.currently_logging = False
+        
 
     # Open the log file
     def reset_logfile(self, control_signal):
@@ -202,9 +204,16 @@ class CameraSensor:
             self.cap = video_capture
         else:
             self.cap = cv2.VideoCapture(camera_id)
-        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_5X5_100)
-        self.parameters = aruco.DetectorParameters()
-        self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
+        self.pose_estimator = ArucoPoseEstimator(
+            camera_matrix=parameters.camera_matrix,
+            dist_coeffs=parameters.dist_coeffs,
+            marker_length=parameters.marker_length,
+            known_markers=parameters.KNOWN_MARKERS,
+            robot_marker_id=7
+        )
+        # self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_5X5_100)
+        # self.parameters = aruco.DetectorParameters()
+        # self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
         
     # Get a new pose estimate from a camera image
     def get_signal(self, last_camera_signal):
@@ -228,15 +237,29 @@ class CameraSensor:
             print("Failed to grab frame from camera")
             return False, []
         
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray)
-        if ids is not None:
-            # Estimate pose for each detected marker
-            for i in range(len(ids)):
-                rvec, tvec, _ = my_estimatePoseSingleMarkers(corners[i], parameters.marker_length, parameters.camera_matrix, parameters.dist_coeffs)
-                pose_estimate = [tvec[0][0], tvec[0][1], tvec[0][2], rvec[0][0], rvec[0][1], rvec[0][2]]
+        # --- NEW LOGIC ---
+        # Pass the raw frame to your new estimator class
+        pose_dict, annotated_frame = self.pose_estimator.estimate_pose(frame)
+
+        # If the strict tracking criteria are met, it returns a valid pose
+        if pose_dict is not None:
+            # Extract the values into the 6-element list format your system expects
+            pose_estimate = [
+                pose_dict['x'], 
+                pose_dict['y'], 
+                pose_dict['z'], 
+                pose_dict['roll'], 
+                pose_dict['pitch'], 
+                pose_dict['yaw']
+            ]
+            
+            # Optional: Show the live annotated camera feed for debugging
+            # cv2.imshow('Aruco Tracking View', annotated_frame)
+            # cv2.waitKey(1)
+            
             return True, pose_estimate
-        
+            
+        # If the robot marker or the fixed reference marker isn't visible
         return False, []
     
     # Close the camera stream
@@ -286,26 +309,26 @@ class RobotSensorSignal:
 # Posted by M lab, modified by community. See post 'Timeline' for change history
 # Retrieved 2026-02-22, License - CC BY-SA 4.0
 
-def my_estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
-    '''
-    This will estimate the rvec and tvec for each of the marker corners detected by:
-       corners, ids, rejectedImgPoints = detector.detectMarkers(image)
-    corners - is an array of detected corners for each detected marker in the image
-    marker_size - is the size of the detected markers
-    mtx - is the camera matrix
-    distortion - is the camera distortion matrix
-    RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
-    '''
-    marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
-                              [marker_size / 2, marker_size / 2, 0],
-                              [marker_size / 2, -marker_size / 2, 0],
-                              [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
-    trash = []
-    rvecs = []
-    tvecs = []
-    for c in corners:
-        nada, R, t = cv2.solvePnP(marker_points, c, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
-        rvecs.append(R)
-        tvecs.append(t)
-        trash.append(nada)
-    return rvecs, tvecs, trash
+# def my_estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
+#     '''
+#     This will estimate the rvec and tvec for each of the marker corners detected by:
+#        corners, ids, rejectedImgPoints = detector.detectMarkers(image)
+#     corners - is an array of detected corners for each detected marker in the image
+#     marker_size - is the size of the detected markers
+#     mtx - is the camera matrix
+#     distortion - is the camera distortion matrix
+#     RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
+#     '''
+#     marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+#                               [marker_size / 2, marker_size / 2, 0],
+#                               [marker_size / 2, -marker_size / 2, 0],
+#                               [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
+#     trash = []
+#     rvecs = []
+#     tvecs = []
+#     for c in corners:
+#         nada, R, t = cv2.solvePnP(marker_points, c, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
+#         rvecs.append(R)
+#         tvecs.append(t)
+#         trash.append(nada)
+#     return rvecs, tvecs, trash

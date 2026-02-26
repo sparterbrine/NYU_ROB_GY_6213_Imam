@@ -1,6 +1,7 @@
 # External libraries
 import math
 import numpy as np
+from typing import Dict
 
 # UDP parameters
 localIP = "192.168.0.200" # Put your laptop computer's IP here 199
@@ -42,6 +43,15 @@ dist_coeffs = np.array([
 # Robot parameters
 num_robot_sensors = 2 # encoder, steering
 num_robot_control_signals = 2 # speed, steering
+
+KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
+        1: {'x': 1.05, 'y': 0.85, 'yaw': 0},   # Close Left
+        3: {'x': 1.05, 'y': -0.95, 'yaw': 90}, # Close Right
+        6: {'x': 1.05, 'y': 0.05,  'yaw': 90}, # Close Center
+        2: {'x': 2.05, 'y': 0.05,  'yaw': 0},  # Mid Center
+        4: {'x': 3.05, 'y': 0.85, 'yaw': 180}, # Far Left
+        5: {'x': 3.05, 'y': -0.95,  'yaw': 90},# Far Right
+    }
 
 # Logging parameters
 max_num_lines_before_write = 1
