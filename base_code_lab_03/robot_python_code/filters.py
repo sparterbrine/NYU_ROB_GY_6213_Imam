@@ -9,7 +9,7 @@ class ThetaFilter:
         self.theta_filter_buffer_size: int = buffer_size
 
     def filter_pose_theta(self, theta: float) -> float:
-        """Robust filter for theta using a rolling buffer and median, with angle wrapping."""
+        """Robust filter for theta using a rolling buffer and median."""
 
         self._theta_buffer.append(theta)
         if len(self._theta_buffer) > self.theta_filter_buffer_size:

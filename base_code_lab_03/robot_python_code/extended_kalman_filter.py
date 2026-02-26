@@ -81,7 +81,7 @@ class ExtendedKalmanFilter:
         
         theta_rad: float = math.radians(self.state_mean.theta)
         theta_t: float = theta_rad + math.radians(delta_theta)
-        mid_theta: float = (theta_rad + math.radians(delta_theta)) / 2.0
+        mid_theta: float = (theta_rad + theta_t) / 2.0
         
         x_t: float = self.state_mean.x + s * math.cos(mid_theta)
         y_t: float = self.state_mean.y + s * math.sin(mid_theta)
@@ -89,7 +89,7 @@ class ExtendedKalmanFilter:
         # Keep theta bounds clean
         theta_t = (theta_t + math.pi) % (2 * math.pi) - math.pi
         
-        return State(x_t, y_t, theta_t), s
+        return State(x_t, y_t, math.degrees(theta_t)), s
     
     # The nonlinear measurement function
     def get_h_function(self, x_t):
