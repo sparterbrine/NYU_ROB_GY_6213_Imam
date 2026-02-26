@@ -15,6 +15,7 @@ from time import time
 from robot import Robot
 import robot_python_code
 import parameters
+from trajectories import TRAJECTORIES, TrajectoryRunner
 
 # Global variables
 logging = False
@@ -51,6 +52,7 @@ def main():
     if stream_video:
         video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
     robot = Robot(video_capture)
+    trajectory_runner = TrajectoryRunner()
 
     # Lidar data
     max_lidar_range = 12
@@ -114,6 +116,13 @@ def main():
                 logging_switch.value = False
                 robot.extra_logging = False
                 
+
+        # Trajectory runner overrides manual sliders when active
+        if trajectory_runner.is_running:
+            cmd_speed, cmd_steering_angle = trajectory_runner.update()
+            if not trajectory_runner.is_running:
+                trajectory_status_label.set_text('Done')
+            return cmd_speed, cmd_steering_angle
 
         # Regular slider controls
         if speed_switch.value:
@@ -258,6 +267,30 @@ def main():
             with ui.card().classes('w-full items-center'):
                 steering_switch = ui.switch('Enable', on_change=lambda: enable_steering())
         
+
+    # Trajectory runner controls
+    def run_trajectory():
+        name = trajectory_select.value
+        if name:
+            trajectory_runner.start(name)
+            trajectory_status_label.set_text(f'Running: {name}')
+
+    def stop_trajectory():
+        trajectory_runner.stop()
+        trajectory_status_label.set_text('Stopped')
+
+    # Create the trajectory control card
+    with ui.card().classes('w-full'):
+        with ui.grid(columns=4).classes('w-full items-center'):
+            with ui.card().classes('w-full items-center'):
+                ui.label('TRAJECTORY:').style('text-align: center;')
+            with ui.card().classes('w-full items-center'):
+                trajectory_select = ui.select(list(TRAJECTORIES.keys()), value=list(TRAJECTORIES.keys())[0])
+            with ui.card().classes('w-full items-center'):
+                ui.button('Run', on_click=lambda: run_trajectory())
+                ui.button('Stop', on_click=lambda: stop_trajectory())
+            with ui.card().classes('w-full items-center'):
+                trajectory_status_label = ui.label('Idle')
 
     # Update slider values, plots, etc. and run robot control loop
     async def control_loop():
