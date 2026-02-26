@@ -227,6 +227,9 @@ def main():
             with ui.card().classes('items-center h-60'):
                 ui.label('Encoder:').style('text-align: center;')
                 encoder_count_label = ui.label('0')
+                # New: x, y, theta label
+                ui.label('z_t: x, y, theta').style('text-align: center;')
+                state_label = ui.label('0.0, 0.0, 0.0').style('text-align: center;')
                 logging_switch = ui.switch('Data Logging ')
                 udp_switch = ui.switch('Robot Connect')
                 run_trial_button = ui.button('Run Trial', on_click=lambda:run_trial())
@@ -262,6 +265,14 @@ def main():
         cmd_speed, cmd_steering_angle = update_commands()
         robot.control_loop(cmd_speed, cmd_steering_angle, logging_switch.value)
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
+        # Update x, y, theta label
+        try:
+            x = float(robot.camera_sensor_signal[0])
+            y = float(robot.camera_sensor_signal[1])
+            theta = float(robot.camera_sensor_signal[5])
+            state_label.set_text(f"{x:.2f}, {y:.2f}, {theta:.2f}")
+        except Exception:
+            state_label.set_text("N/A, N/A, N/A")
         
         #update_lidar_data()
         #show_lidar_plot()

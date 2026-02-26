@@ -284,8 +284,8 @@ class RobotSensorSignal:
 
     # Constructor
     def __init__(self, unpacked_msg):
-        self.encoder_counts = int(unpacked_msg[0])
-        self.steering = int(unpacked_msg[1])
+        self.encoder_counts: int = int(unpacked_msg[0])
+        self.steering: int = int(unpacked_msg[1])
         self.num_lidar_rays = int(unpacked_msg[2])
         self.angles = []
         self.distances = []

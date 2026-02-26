@@ -195,7 +195,7 @@ class KalmanFilterPlot:
         plt.plot([state_mean.x, state_mean.x+ self.dir_length*math.cos(state_mean.theta) ], [state_mean.y, state_mean.y+ self.dir_length*math.sin(state_mean.theta) ],'r')
         plt.xlabel('X(m)')
         plt.ylabel('Y(m)')
-        plt.axis([-0.25, 2, -1, 1])
+        plt.axis([-0.25, 3.5, -1.5, 1.5])
         plt.grid()
         plt.draw()
         plt.pause(0.1)
@@ -232,5 +232,5 @@ def offline_efk():
 
 
 ####### MAIN #######
-if False:
+if __name__ == "__main__":
     offline_efk()
