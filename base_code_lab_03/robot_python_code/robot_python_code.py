@@ -88,7 +88,7 @@ class DataLogger:
 
         
     # Log one time step of data
-    def log(self, logging_switch_on, time, control_signal, robot_sensor_signal, camera_sensor_signal, state_mean, state_covariance):
+    def log(self, logging_switch_on, time, control_signal, robot_sensor_signal, camera_sensor_signal, state_mean, state_covariance, frame=None):
         if not logging_switch_on:
             if self.currently_logging:
                 self.currently_logging = False
@@ -104,6 +104,11 @@ class DataLogger:
             self.dictionary['camera_sensor_signal'].append(camera_sensor_signal)
             self.dictionary['state_mean'].append(state_mean)
             self.dictionary['state_covariance'].append(state_covariance)
+            if frame is not None:
+                _, encoded = cv2.imencode('.jpg', frame)
+                self.dictionary['frame'].append(encoded.tobytes())
+            else:
+                self.dictionary['frame'].append(None)
 
             self.line_count += 1
             if self.line_count > parameters.max_num_lines_before_write:
@@ -212,6 +217,7 @@ class CameraSensor:
     # Constructor
     def __init__(self, camera_id, video_capture=None):
         self.camera_id = camera_id
+        self.last_frame = None
         if video_capture:
             self.cap = video_capture
         else:
@@ -248,7 +254,9 @@ class CameraSensor:
         if not ret:
             print("Failed to grab frame from camera")
             return False, []
-        
+
+        self.last_frame = frame
+
         # --- NEW LOGIC ---
         # Pass the raw frame to your new estimator class
         pose_dict, annotated_frame = self.pose_estimator.estimate_pose(frame)
