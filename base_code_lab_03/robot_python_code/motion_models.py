@@ -37,8 +37,37 @@ class State:
         """[x_g, y_g, theta_g]"""
         self.x: float = x
         self.y: float = y
-        self.theta: float= theta
+        self.theta: float = theta
         '''In Degrees'''
+
+    def to_array(self) -> np.ndarray:
+        """Return state as a numpy array [x, y, theta]"""
+        return np.array([self.x, self.y, self.theta])
+
+    @classmethod
+    def from_array(cls, arr: np.ndarray) -> "State":
+        """Create State from array-like [x, y, theta]"""
+        return cls(arr[0], arr[1], arr[2])
+
+    def __getitem__(self, idx):
+        if idx == 0:
+            return self.x
+        elif idx == 1:
+            return self.y
+        elif idx == 2:
+            return self.theta
+        else:
+            raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
+
+    def __setitem__(self, idx, value):
+        if idx == 0:
+            self.x = value
+        elif idx == 1:
+            self.y = value
+        elif idx == 2:
+            self.theta = value
+        else:
+            raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
 
     def __sub__(self, other: "State") -> "State":
         return State(self.x - other.x, self.y - other.y, self.theta - other.theta)
