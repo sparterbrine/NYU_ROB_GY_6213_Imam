@@ -38,7 +38,7 @@ class ExtendedKalmanFilter:
     # Set the EKF's predicted state mean and covariance matrix
     def prediction_step(self, u_t, delta_t):
         """ u_t =Encoder counts, Steering Angle"""
-        self.predicted_state_mean, s = self.g_function(self.state_mean, u_t, delta_t) # s here is the calculated distance travelled based on the change in encoder counts, which is an intermediate variable needed for the Jacobian calculations below
+        self.predicted_state_mean, s = self.g_function(u_t, delta_t) # s here is the calculated distance travelled based on the change in encoder counts, which is an intermediate variable needed for the Jacobian calculations below
         
         delta_theta = rotational_velocity_w(u_t[1]) * delta_t
         '''In Degrees'''
@@ -71,7 +71,7 @@ class ExtendedKalmanFilter:
         self.state_covariance = (np.eye(3) - K @ H) @ self.predicted_state_covariance
 
     # The nonlinear transition equation that provides new states from past states
-    def g_function(self, x_tm1: State, u_t: np.ndarray, delta_t: float) -> Tuple[State, float]:
+    def g_function(self, u_t: np.ndarray, delta_t: float) -> Tuple[State, float]:
         encoder_counts, steering_angle_command = u_t
         delta_encoder: int = encoder_counts - self.last_encoder_counts
         s: float = distance_travelled_s(delta_encoder)
@@ -79,12 +79,12 @@ class ExtendedKalmanFilter:
         w_deg: float = rotational_velocity_w(steering_angle_command)
         delta_theta: float = w_deg * delta_t
         
-        theta_rad: float = math.radians(x_tm1.theta)
+        theta_rad: float = math.radians(self.state_mean.theta)
         theta_t: float = theta_rad + math.radians(delta_theta)
         mid_theta: float = (theta_rad + math.radians(delta_theta)) / 2.0
         
-        x_t: float = x_tm1.x + s * math.cos(mid_theta)
-        y_t: float = x_tm1.y + s * math.sin(mid_theta)
+        x_t: float = self.state_mean.x + s * math.cos(mid_theta)
+        y_t: float = self.state_mean.y + s * math.sin(mid_theta)
         
         # Keep theta bounds clean
         theta_t = (theta_t + math.pi) % (2 * math.pi) - math.pi
