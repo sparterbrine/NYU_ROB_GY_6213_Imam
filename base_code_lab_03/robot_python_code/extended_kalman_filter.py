@@ -24,13 +24,15 @@ class ExtendedKalmanFilter:
         self._q_matrix = None
 
     # Call the prediction and correction steps
-    def update(self, u_t, z_t, delta_t):
+    def update(self, u_t, z_t, delta_t) -> State:
         """ u_t =Encoder counts, Steering Angle
          z_t = Camera X, Camera Y, Camera Theta"""
         self.prediction_step(u_t, delta_t)
         self.correction_step(State(z_t[0], z_t[1], z_t[2]))
         # Update encoder memory for the next step's delta calculation
         self.last_encoder_counts = u_t[0] 
+
+        return self.predicted_state_mean
 
     # Set the EKF's predicted state mean and covariance matrix
     def prediction_step(self, u_t, delta_t):
@@ -205,7 +207,7 @@ class KalmanFilterPlot:
 def offline_efk():
 
     # Get data to filter
-    filename = './data/robot_data_68_0_06_02_26_17_12_19.pkl'
+    filename = './data/robot_data_0_0_25_02_26_21_52_25.pkl'
     ekf_data = data_handling.get_file_data_for_kf(filename)
     '''A list, with each entry being a tuple of [timestamp, control_signal, robot_sensor_signal, camera_sensor_signal]\n
     Reminder: camera_sensor_signal is a list of [camera_x, camera_y, camera_z, camera_roll, camera_pitch, camera_theta]'''
@@ -219,6 +221,19 @@ def offline_efk():
     # Create plotting tool for ekf
     kalman_filter_plot = KalmanFilterPlot()
 
+
+    # Store results for plotting
+    time_list = []
+    predicted_x_list: List[float] = []
+    predicted_y_list: List[float] = []
+    predicted_theta_list: List[float] = []
+    z_x_list: List[float] = []
+    z_y_list: List[float] = []
+    z_theta_list: List[float] = []
+    filtered_x_list: List[float] = []
+    filtered_y_list: List[float] = []
+    filtered_theta_list: List[float] = []
+
     # Loop over sim data
     for t in range(1, len(ekf_data)):
         row = ekf_data[t]
@@ -227,8 +242,46 @@ def offline_efk():
         z_t = np.array([row[3][0],row[3][1],row[3][5]]) # camera_sensor_signal
 
         # Run the EKF for a time step
-        extended_kalman_filter.update(u_t, z_t, delta_t)
-        kalman_filter_plot.update(extended_kalman_filter.state_mean, extended_kalman_filter.state_covariance[0:2,0:2])
+        predicted_state: State = extended_kalman_filter.update(u_t, z_t, delta_t)
+        # kalman_filter_plot.update(extended_kalman_filter.state_mean, extended_kalman_filter.state_covariance[0:2,0:2])
+
+        # Store for plotting
+        time_list.append(row[0])
+        predicted_x_list.append(predicted_state.x)
+        predicted_y_list.append(predicted_state.y)
+        predicted_theta_list.append(predicted_state.theta)
+        z_x_list.append(z_t[0])
+        z_y_list.append(z_t[1])
+        z_theta_list.append(z_t[2])
+        filtered_x_list.append(extended_kalman_filter.state_mean.x)
+        filtered_y_list.append(extended_kalman_filter.state_mean.y)
+        filtered_theta_list.append(extended_kalman_filter.state_mean.theta)
+
+    # Plot x, y, theta over time with z_t (measurements)
+    plt.figure()
+    plt.subplot(3,1,1)
+    plt.plot(time_list, predicted_x_list, label='Predicted x', color='blue')
+    plt.plot(time_list, z_x_list, label='Measurement x', color='green', linestyle='dashed')
+    plt.plot(time_list, filtered_x_list, label='EKF x', color='red')
+    plt.ylabel('x (m)')
+    plt.legend()
+
+    plt.subplot(3,1,2)
+    plt.plot(time_list, predicted_y_list, label='Predicted y', color='blue')
+    plt.plot(time_list, z_y_list, label='Measurement y', color='green', linestyle='dashed')
+    plt.plot(time_list, filtered_y_list, label='EKF y', color='red')
+    plt.ylabel('y (m)')
+    plt.legend()
+
+    plt.subplot(3,1,3)
+    plt.plot(time_list, predicted_theta_list, label='Predicted theta', color='blue')
+    plt.plot(time_list, z_theta_list, label='Measurement theta', color='green', linestyle='dashed')
+    plt.plot(time_list, filtered_theta_list, label='EKF theta', color='red')
+    plt.xlabel('Time (s)')
+    plt.ylabel('theta (degrees)')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 
 ####### MAIN #######
