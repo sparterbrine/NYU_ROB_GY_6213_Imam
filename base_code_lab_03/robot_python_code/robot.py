@@ -73,5 +73,5 @@ class Robot:
             self.msg_sender.send_control_signal(control_signal)
             
         # Log the data
-        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal, self.extended_kalman_filter.state_mean, self.extended_kalman_filter.state_covariance)
+        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.camera_sensor_signal, self.extended_kalman_filter.state_mean, self.extended_kalman_filter.state_covariance, self.camera_sensor.last_frame)
 

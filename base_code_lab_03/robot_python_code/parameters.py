@@ -56,7 +56,7 @@ KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
 # Logging parameters
 max_num_lines_before_write = 1
 filename_start = './data/robot_data'
-data_name_list = ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal', 'state_mean', 'state_covariance']
+data_name_list = ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal', 'state_mean', 'state_covariance', 'frame']
 
 # Experiment trial parameters
 trial_time = 10000 # milliseconds
