@@ -25,8 +25,8 @@ def variance_rotational_velocity_w(distance: float) -> float:
 
 
 def rotational_velocity_w(steering_angle_command: float) -> float:
-    slope: float = 2.25
-    intercept: float= -0.66
+    slope: float = -2.25
+    intercept: float= 0.66
     
     w: float = (slope * steering_angle_command) + intercept
     w = w*(-1)
