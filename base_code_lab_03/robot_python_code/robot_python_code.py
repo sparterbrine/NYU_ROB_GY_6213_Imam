@@ -1,5 +1,7 @@
 # External libraries
 
+from typing import List, Tuple
+
 import serial
 import time
 import pickle
@@ -224,7 +226,7 @@ class CameraSensor:
         # self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
         
     # Get a new pose estimate from a camera image
-    def get_signal(self, last_camera_signal):
+    def get_signal(self, last_camera_signal: List[float]) -> List[float]:
         camera_signal = last_camera_signal
         ret, pose_estimate = self.get_pose_estimate()
         if ret:
@@ -233,7 +235,8 @@ class CameraSensor:
         return camera_signal
         
     # If there is a new image, calculate a pose estimate from the fiducial tag on the robot.
-    def get_pose_estimate(self):
+    def get_pose_estimate(self) -> Tuple[bool, List[float]]:
+        """Returns a tuple of (bool, List[float]). The bool indicates if a valid pose estimate was obtained. The list contains the pose estimate in the format [x, y, z, roll, pitch, yaw]."""
         # Try to read a frame a few times
         for _ in range(5):
             ret, frame = self.cap.read()
@@ -252,7 +255,7 @@ class CameraSensor:
         # If the strict tracking criteria are met, it returns a valid pose
         if pose_dict is not None:
             # Extract the values into the 6-element list format your system expects
-            pose_estimate = [
+            pose_estimate: List[float] = [
                 pose_dict['x'], 
                 pose_dict['y'], 
                 pose_dict['z'], 

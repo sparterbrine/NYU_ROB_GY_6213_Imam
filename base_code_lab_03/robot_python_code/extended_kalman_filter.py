@@ -178,7 +178,7 @@ class KalmanFilterPlot:
         self.ax = ax
         self.fig = fig
 
-    def update(self, state_mean, state_covaraiance):
+    def update(self, state_mean: State, state_covaraiance):
         plt.clf()
 
         # Plot covariance ellipse
@@ -207,6 +207,8 @@ def offline_efk():
     # Get data to filter
     filename = './data/robot_data_68_0_06_02_26_17_12_19.pkl'
     ekf_data = data_handling.get_file_data_for_kf(filename)
+    '''A list, with each entry being a tuple of [timestamp, control_signal, robot_sensor_signal, camera_sensor_signal]\n
+    Reminder: camera_sensor_signal is a list of [camera_x, camera_y, camera_z, camera_roll, camera_pitch, camera_theta]'''
 
     # Instantiate PF with no initial guess
     x_0 = State(ekf_data[0][3][0]+.5, ekf_data[0][3][1], ekf_data[0][3][5])

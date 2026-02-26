@@ -1,4 +1,6 @@
 # External libraries
+from typing import List
+
 import serial
 import time
 import pickle
@@ -28,7 +30,7 @@ class Robot:
         self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id, video_capture)
         self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
-        self.camera_sensor_signal = [0,0,0,0,0,0]
+        self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
         self.extended_kalman_filter = extended_kalman_filter.ExtendedKalmanFilter(x_0 = State(0, 0, 0), Sigma_0 = parameters.I3 * 10e12, encoder_counts_0 = 0)
         
     # Create udp senders and receiver instances with the udp communication
