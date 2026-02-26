@@ -123,7 +123,7 @@ class ExtendedKalmanFilter:
         d_theta = math.radians(delta_theta)
         theta_t = math.radians(x_tm1.theta)
         theta_mid: float = theta_t + d_theta/2.
-        G_u = np.zeros((3, 3))
+        G_u = np.zeros((3, 2))
 
         # Partial wrt s mapped to col 0
         # x_t, y_t, theta_t wrt  s (speed)
