@@ -75,13 +75,22 @@ class DataLogger:
         for name in data_name_list:
             self.dictionary[name] = []
         self.currently_logging = False
-        
+        self.next_session_name = None
+
+    # Set a custom name for the next log file (overrides the default control-signal-based name).
+    def set_next_session_name(self, name: str):
+        self.next_session_name = name.replace(' ', '_')
 
     # Open the log file
     def reset_logfile(self, control_signal):
         # Ensure the data directory exists
         os.makedirs(self.data_dir, exist_ok=True)
-        self.filename = self.filename_start + "_"+str(control_signal[0])+"_"+str(control_signal[1]) + strftime("_%d_%m_%y_%H_%M_%S.pkl")
+        if self.next_session_name is not None:
+            base = self.next_session_name + strftime("_%d_%m_%y_%H_%M_%S")
+            self.next_session_name = None
+        else:
+            base = "robot_data_" + str(control_signal[0]) + "_" + str(control_signal[1]) + strftime("_%d_%m_%y_%H_%M_%S")
+        self.filename = os.path.join(self.data_dir, base + ".pkl")
         self.dictionary = {}
         for name in self.data_name_list:
             self.dictionary[name] = []

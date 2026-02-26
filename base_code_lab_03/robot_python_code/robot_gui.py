@@ -121,6 +121,7 @@ def main():
         if trajectory_runner.is_running:
             cmd_speed, cmd_steering_angle = trajectory_runner.update()
             if not trajectory_runner.is_running:
+                logging_switch.value = False
                 trajectory_status_label.set_text('Done')
             return cmd_speed, cmd_steering_angle
 
@@ -272,11 +273,14 @@ def main():
     def run_trajectory():
         name = trajectory_select.value
         if name:
+            robot.data_logger.set_next_session_name(name)
+            logging_switch.value = True
             trajectory_runner.start(name)
             trajectory_status_label.set_text(f'Running: {name}')
 
     def stop_trajectory():
         trajectory_runner.stop()
+        logging_switch.value = False
         trajectory_status_label.set_text('Stopped')
 
     # Create the trajectory control card
