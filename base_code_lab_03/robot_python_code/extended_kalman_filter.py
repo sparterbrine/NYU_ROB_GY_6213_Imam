@@ -207,7 +207,7 @@ class KalmanFilterPlot:
 
 
 # Code to run your EKF offline with a data file.
-def offline_efk(filename: str):
+def offline_efk(filename: str, title: str = None):
     ekf_data = data_handling.get_file_data_for_kf(filename)
 
     # Load ground truth annotations if available (produced by annotate_data.py)
@@ -278,35 +278,39 @@ def offline_efk(filename: str):
             gt_theta_list.append(ann['theta'])
 
     # Plot x, y, theta over time with z_t (measurements)
-    plt.figure()
-    plt.subplot(3,1,1)
-    plt.plot(time_list, predicted_x_list, label='Predicted x', color='blue')
-    plt.plot(time_list, z_x_list, label='Measurement x', color='green', linestyle='dashed')
-    plt.plot(time_list, filtered_x_list, label='EKF x', color='red')
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    if title:
+        fig.suptitle(title)
+
+    # Labels only on ax1 so the shared figure legend has no duplicates
+    ax1.plot(time_list, predicted_x_list, label='Predicted', color='blue')
+    ax1.plot(time_list, z_x_list, label='Measurement', color='green', linestyle='dashed')
+    ax1.plot(time_list, filtered_x_list, label='EKF', color='red')
     if gt_x_list:
-        plt.scatter(gt_time_list, gt_x_list, marker='*', s=120, color='black', zorder=5, label='Ground truth x')
-    plt.ylabel('x (m)')
-    plt.legend()
+        ax1.scatter(gt_time_list, gt_x_list, marker='*', s=120, color='black', zorder=5, label='Ground truth')
+    ax1.set_ylabel('x (m)')
 
-    plt.subplot(3,1,2)
-    plt.plot(time_list, predicted_y_list, label='Predicted y', color='blue')
-    plt.plot(time_list, z_y_list, label='Measurement y', color='green', linestyle='dashed')
-    plt.plot(time_list, filtered_y_list, label='EKF y', color='red')
+    ax2.plot(time_list, predicted_y_list, color='blue')
+    ax2.plot(time_list, z_y_list, color='green', linestyle='dashed')
+    ax2.plot(time_list, filtered_y_list, color='red')
     if gt_y_list:
-        plt.scatter(gt_time_list, gt_y_list, marker='*', s=120, color='black', zorder=5, label='Ground truth y')
-    plt.ylabel('y (m)')
-    plt.legend()
+        ax2.scatter(gt_time_list, gt_y_list, marker='*', s=120, color='black', zorder=5)
+    ax2.set_ylabel('y (m)')
 
-    plt.subplot(3,1,3)
-    plt.plot(time_list, predicted_theta_list, label='Predicted theta', color='blue')
-    plt.plot(time_list, z_theta_list, label='Measurement theta', color='green', linestyle='dashed')
-    plt.plot(time_list, filtered_theta_list, label='EKF theta', color='red')
+    ax3.plot(time_list, predicted_theta_list, color='blue')
+    ax3.plot(time_list, z_theta_list, color='green', linestyle='dashed')
+    ax3.plot(time_list, filtered_theta_list, color='red')
     if gt_theta_list:
-        plt.scatter(gt_time_list, gt_theta_list, marker='*', s=120, color='black', zorder=5, label='Ground truth theta')
-    plt.xlabel('Time (s)')
-    plt.ylabel('theta (degrees)')
-    plt.legend()
-    plt.tight_layout()
+        ax3.scatter(gt_time_list, gt_theta_list, marker='*', s=120, color='black', zorder=5)
+    ax3.set_xlabel('Time (s)')
+    ax3.set_ylabel('theta (deg)')
+
+    # Single legend below all subplots
+    handles, labels = ax1.get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', ncol=len(handles),
+               bbox_to_anchor=(0.5, 0), framealpha=0.9)
+    top = 0.93 if title else 1.0
+    fig.tight_layout(rect=[0, 0.06, 1, top])
     plt.show()
 
 
@@ -314,5 +318,6 @@ def offline_efk(filename: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run EKF offline on a robot data log.")
     parser.add_argument('pkl_file', help="Path to the .pkl log file")
+    parser.add_argument('--title', default=None, help="Title for the plot")
     args = parser.parse_args()
-    offline_efk(args.pkl_file)
+    offline_efk(args.pkl_file, args.title)
