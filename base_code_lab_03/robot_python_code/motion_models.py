@@ -10,7 +10,7 @@ L: float = 0.140               # <--- NEW: Wheelbase = 140mm (0.14m)
 '''Wheelbase in meters'''
 
 # Uncertainty Constants (Keep these for simulation/Part 7)
-VAR_S_COEFF: float = 0.00027
+VAR_S_COEFF: float = 0.0027 * 2
 VAR_W_CONST: float = 0.096
 
 # --- Helper Functions (Simulation) ---

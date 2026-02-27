@@ -236,6 +236,9 @@ def offline_efk(filename: str, title: str = None):
     predicted_x_list: List[float] = []
     predicted_y_list: List[float] = []
     predicted_theta_list: List[float] = []
+    pred_sigma_x_list: List[float] = []
+    pred_sigma_y_list: List[float] = []
+    pred_sigma_theta_list: List[float] = []
     z_x_list: List[float] = []
     z_y_list: List[float] = []
     z_theta_list: List[float] = []
@@ -261,6 +264,10 @@ def offline_efk(filename: str, title: str = None):
         predicted_x_list.append(predicted_state.x)
         predicted_y_list.append(predicted_state.y)
         predicted_theta_list.append(predicted_state.theta)
+        cov = extended_kalman_filter.predicted_state_covariance
+        pred_sigma_x_list.append(math.sqrt(max(0.0, cov[0, 0])))
+        pred_sigma_y_list.append(math.sqrt(max(0.0, cov[1, 1])))
+        pred_sigma_theta_list.append(math.sqrt(max(0.0, cov[2, 2])))
         z_x_list.append(z_t[0])
         z_y_list.append(z_t[1])
         z_theta_list.append(z_t[2])
@@ -277,12 +284,47 @@ def offline_efk(filename: str, title: str = None):
             gt_y_list.append(ann['y'])
             gt_theta_list.append(ann['theta'])
 
+    # Print average error between EKF estimate and ground truth annotations
+    if gt_x_list:
+        ekf_x_at_gt, ekf_y_at_gt, ekf_theta_at_gt = [], [], []
+        for idx in sorted(ground_truth.keys()):
+            if idx < len(ekf_data):
+                list_idx = max(0, idx - 1)  # filtered lists start at t=1, so annotation idx → list index idx-1
+                if list_idx < len(filtered_x_list):
+                    ekf_x_at_gt.append(filtered_x_list[list_idx])
+                    ekf_y_at_gt.append(filtered_y_list[list_idx])
+                    ekf_theta_at_gt.append(filtered_theta_list[list_idx])
+
+        if ekf_x_at_gt:
+            n = len(ekf_x_at_gt)
+            x_errors     = [abs(gt - ekf) for gt, ekf in zip(gt_x_list[:n], ekf_x_at_gt)]
+            y_errors     = [abs(gt - ekf) for gt, ekf in zip(gt_y_list[:n], ekf_y_at_gt)]
+            # Wrap theta error to [-180, 180]
+            theta_errors = [abs(((gt - ekf) + 180) % 360 - 180) for gt, ekf in zip(gt_theta_list[:n], ekf_theta_at_gt)]
+            x_mean, y_mean, t_mean = sum(x_errors)/n, sum(y_errors)/n, sum(theta_errors)/n
+            x_std  = (sum((e - x_mean)**2 for e in x_errors) / n) ** 0.5
+            y_std  = (sum((e - y_mean)**2 for e in y_errors) / n) ** 0.5
+            t_std  = (sum((e - t_mean)**2 for e in theta_errors) / n) ** 0.5
+            print(f"\nAverage EKF error vs ground truth ({n} annotation(s)):")
+            print(f"  x:     {x_mean:.4f} ± {x_std:.4f} m")
+            print(f"  y:     {y_mean:.4f} ± {y_std:.4f} m")
+            print(f"  theta: {t_mean:.4f} ± {t_std:.4f} deg")
+
     # Plot x, y, theta over time with z_t (measurements)
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     if title:
         fig.suptitle(title)
 
+    # Convert to numpy for fill_between arithmetic
+    px = np.array(predicted_x_list)
+    py = np.array(predicted_y_list)
+    pt = np.array(predicted_theta_list)
+    sx = np.array(pred_sigma_x_list)
+    sy = np.array(pred_sigma_y_list)
+    st = np.array(pred_sigma_theta_list)
+
     # Labels only on ax1 so the shared figure legend has no duplicates
+    ax1.fill_between(time_list, px - 2*sx, px + 2*sx, alpha=0.2, color='blue', label='Predicted ±2σ')
     ax1.plot(time_list, predicted_x_list, label='Predicted', color='blue')
     ax1.plot(time_list, z_x_list, label='Measurement', color='green', linestyle='dashed')
     ax1.plot(time_list, filtered_x_list, label='EKF', color='red')
@@ -290,6 +332,7 @@ def offline_efk(filename: str, title: str = None):
         ax1.scatter(gt_time_list, gt_x_list, marker='*', s=120, color='black', zorder=5, label='Ground truth')
     ax1.set_ylabel('x (m)')
 
+    ax2.fill_between(time_list, py - 2*sy, py + 2*sy, alpha=0.2, color='blue')
     ax2.plot(time_list, predicted_y_list, color='blue')
     ax2.plot(time_list, z_y_list, color='green', linestyle='dashed')
     ax2.plot(time_list, filtered_y_list, color='red')
@@ -297,6 +340,7 @@ def offline_efk(filename: str, title: str = None):
         ax2.scatter(gt_time_list, gt_y_list, marker='*', s=120, color='black', zorder=5)
     ax2.set_ylabel('y (m)')
 
+    ax3.fill_between(time_list, pt - 2*st, pt + 2*st, alpha=0.2, color='blue')
     ax3.plot(time_list, predicted_theta_list, color='blue')
     ax3.plot(time_list, z_theta_list, color='green', linestyle='dashed')
     ax3.plot(time_list, filtered_theta_list, color='red')
