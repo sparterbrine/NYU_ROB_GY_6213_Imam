@@ -33,8 +33,18 @@ class ExtendedKalmanFilter:
         self.prediction_step(u_t, delta_t)
         self.correction_step(State(z_t[0], z_t[1], z_t[2]))
         # Update encoder memory for the next step's delta calculation
-        self.last_encoder_counts = u_t[0] 
+        self.last_encoder_counts = u_t[0]
 
+        return self.predicted_state_mean
+
+    # Prediction step only — used when the camera measurement is stale (no new ArUco detection)
+    def predict_only(self, u_t, delta_t) -> State:
+        """Run the motion model forward without a camera correction.
+        Propagates predicted_state_mean/covariance into state_mean/covariance."""
+        self.prediction_step(u_t, delta_t)
+        self.state_mean = self.predicted_state_mean
+        self.state_covariance = self.predicted_state_covariance
+        self.last_encoder_counts = u_t[0]
         return self.predicted_state_mean
 
     # Set the EKF's predicted state mean and covariance matrix
@@ -239,6 +249,9 @@ def offline_efk(filename: str, title: str = None):
     pred_sigma_x_list: List[float] = []
     pred_sigma_y_list: List[float] = []
     pred_sigma_theta_list: List[float] = []
+    ekf_sigma_x_list: List[float] = []
+    ekf_sigma_y_list: List[float] = []
+    ekf_sigma_theta_list: List[float] = []
     z_x_list: List[float] = []
     z_y_list: List[float] = []
     z_theta_list: List[float] = []
@@ -246,17 +259,27 @@ def offline_efk(filename: str, title: str = None):
     filtered_y_list: List[float] = []
     filtered_theta_list: List[float] = []
     theta_filter = ThetaFilter()
+    # Track last raw camera signal to detect stale (no-detection) frames
+    prev_z_raw = np.array([ekf_data[0][3][0], ekf_data[0][3][1], ekf_data[0][3][5]], dtype=float)
 
     # Loop over sim data
     for t in range(1, len(ekf_data)):
         row = ekf_data[t]
         delta_t = ekf_data[t][0] - ekf_data[t-1][0] # time step size
         u_t = np.array([row[2].encoder_counts, row[2].steering]) # robot_sensor_signal
-        z_t = np.array([row[3][0],row[3][1],row[3][5]]) # camera_sensor_signal
-        z_t[2] = theta_filter.filter_pose_theta(z_t[2]) # Filter camera theta measurements to remove outliers
+        z_raw = np.array([row[3][0], row[3][1], row[3][5]], dtype=float) # camera_sensor_signal (raw)
 
-        # Run the EKF for a time step
-        predicted_state: State = extended_kalman_filter.update(u_t, z_t, delta_t)
+        camera_fresh = not np.array_equal(z_raw, prev_z_raw)
+
+        if camera_fresh:
+            z_t = z_raw.copy()
+            z_t[2] = theta_filter.filter_pose_theta(z_t[2]) # Filter camera theta measurements to remove outliers
+            predicted_state: State = extended_kalman_filter.update(u_t, z_t, delta_t)
+            prev_z_raw = z_raw.copy()
+        else:
+            # No new ArUco detection — propagate with motion model only
+            z_t = z_raw  # stale; stored for plotting but not fed into correction
+            predicted_state: State = extended_kalman_filter.predict_only(u_t, delta_t)
         # kalman_filter_plot.update(extended_kalman_filter.state_mean, extended_kalman_filter.state_covariance[0:2,0:2])
 
         # Store for plotting
@@ -264,10 +287,14 @@ def offline_efk(filename: str, title: str = None):
         predicted_x_list.append(predicted_state.x)
         predicted_y_list.append(predicted_state.y)
         predicted_theta_list.append(predicted_state.theta)
-        cov = extended_kalman_filter.predicted_state_covariance
-        pred_sigma_x_list.append(math.sqrt(max(0.0, cov[0, 0])))
-        pred_sigma_y_list.append(math.sqrt(max(0.0, cov[1, 1])))
-        pred_sigma_theta_list.append(math.sqrt(max(0.0, cov[2, 2])))
+        pred_cov = extended_kalman_filter.predicted_state_covariance
+        pred_sigma_x_list.append(math.sqrt(max(0.0, pred_cov[0, 0])))
+        pred_sigma_y_list.append(math.sqrt(max(0.0, pred_cov[1, 1])))
+        pred_sigma_theta_list.append(math.sqrt(max(0.0, pred_cov[2, 2])))
+        ekf_cov = extended_kalman_filter.state_covariance  # posterior: shrinks on correction, grows on predict-only
+        ekf_sigma_x_list.append(math.sqrt(max(0.0, ekf_cov[0, 0])))
+        ekf_sigma_y_list.append(math.sqrt(max(0.0, ekf_cov[1, 1])))
+        ekf_sigma_theta_list.append(math.sqrt(max(0.0, ekf_cov[2, 2])))
         z_x_list.append(z_t[0])
         z_y_list.append(z_t[1])
         z_theta_list.append(z_t[2])
@@ -316,15 +343,14 @@ def offline_efk(filename: str, title: str = None):
         fig.suptitle(title)
 
     # Convert to numpy for fill_between arithmetic
-    px = np.array(predicted_x_list)
-    py = np.array(predicted_y_list)
-    pt = np.array(predicted_theta_list)
-    sx = np.array(pred_sigma_x_list)
-    sy = np.array(pred_sigma_y_list)
-    st = np.array(pred_sigma_theta_list)
+    px  = np.array(predicted_x_list);     py  = np.array(predicted_y_list);     pt  = np.array(predicted_theta_list)
+    sx  = np.array(pred_sigma_x_list);    sy  = np.array(pred_sigma_y_list);    st  = np.array(pred_sigma_theta_list)
+    fx  = np.array(filtered_x_list);      fy  = np.array(filtered_y_list);      ft  = np.array(filtered_theta_list)
+    esx = np.array(ekf_sigma_x_list);     esy = np.array(ekf_sigma_y_list);     est = np.array(ekf_sigma_theta_list)
 
     # Labels only on ax1 so the shared figure legend has no duplicates
-    ax1.fill_between(time_list, px - 2*sx, px + 2*sx, alpha=0.2, color='blue', label='Predicted ±2σ')
+    # ax1.fill_between(time_list, px - 2*sx, px + 2*sx, alpha=0.2, color='blue', label='Predicted ±2σ')
+    ax1.fill_between(time_list, fx - 15*esx, fx + 15*esx, alpha=0.2, color='red', label='EKF ±15σ')
     ax1.plot(time_list, predicted_x_list, label='Predicted', color='blue')
     ax1.plot(time_list, z_x_list, label='Measurement', color='green', linestyle='dashed')
     ax1.plot(time_list, filtered_x_list, label='EKF', color='red')
@@ -332,7 +358,8 @@ def offline_efk(filename: str, title: str = None):
         ax1.scatter(gt_time_list, gt_x_list, marker='*', s=120, color='black', zorder=5, label='Ground truth')
     ax1.set_ylabel('x (m)')
 
-    ax2.fill_between(time_list, py - 2*sy, py + 2*sy, alpha=0.2, color='blue')
+    # ax2.fill_between(time_list, py - 2*sy, py + 2*sy, alpha=0.2, color='blue')
+    ax2.fill_between(time_list, fy - 15*esy, fy + 15*esy, alpha=0.2, color='red')
     ax2.plot(time_list, predicted_y_list, color='blue')
     ax2.plot(time_list, z_y_list, color='green', linestyle='dashed')
     ax2.plot(time_list, filtered_y_list, color='red')
@@ -340,7 +367,8 @@ def offline_efk(filename: str, title: str = None):
         ax2.scatter(gt_time_list, gt_y_list, marker='*', s=120, color='black', zorder=5)
     ax2.set_ylabel('y (m)')
 
-    ax3.fill_between(time_list, pt - 2*st, pt + 2*st, alpha=0.2, color='blue')
+    # ax3.fill_between(time_list, pt - 2*st, pt + 2*st, alpha=0.2, color='blue')
+    ax3.fill_between(time_list, ft - 15*est, ft + 15*est, alpha=0.2, color='red')
     ax3.plot(time_list, predicted_theta_list, color='blue')
     ax3.plot(time_list, z_theta_list, color='green', linestyle='dashed')
     ax3.plot(time_list, filtered_theta_list, color='red')
