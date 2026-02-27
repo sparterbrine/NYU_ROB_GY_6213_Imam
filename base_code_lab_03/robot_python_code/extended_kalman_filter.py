@@ -1,5 +1,7 @@
 # External libraries
+import argparse
 import json
+import os
 from typing import List, Tuple
 
 import numpy as np
@@ -205,11 +207,17 @@ class KalmanFilterPlot:
 
 
 # Code to run your EKF offline with a data file.
-def offline_efk():
-
-    # Get data to filter
-    filename = './data/robot_data_0_0_25_02_26_21_52_25.pkl'
+def offline_efk(filename: str):
     ekf_data = data_handling.get_file_data_for_kf(filename)
+
+    # Load ground truth annotations if available (produced by annotate_data.py)
+    ann_path = os.path.splitext(filename)[0] + '_annotations.json'
+    ground_truth = {}
+    if os.path.exists(ann_path):
+        with open(ann_path, 'r') as fh:
+            raw = json.load(fh)
+        ground_truth = {int(k): v for k, v in raw.items()}
+        print(f"Loaded {len(ground_truth)} ground truth annotation(s) from {ann_path}")
     '''A list, with each entry being a tuple of [timestamp, control_signal, robot_sensor_signal, camera_sensor_signal]\n
     Reminder: camera_sensor_signal is a list of [camera_x, camera_y, camera_z, camera_roll, camera_pitch, camera_theta]'''
 
@@ -260,12 +268,23 @@ def offline_efk():
         filtered_y_list.append(extended_kalman_filter.state_mean.y)
         filtered_theta_list.append(extended_kalman_filter.state_mean.theta)
 
+    # Build ground truth scatter lists from annotations (annotation index → ekf_data time)
+    gt_time_list, gt_x_list, gt_y_list, gt_theta_list = [], [], [], []
+    for idx, ann in sorted(ground_truth.items()):
+        if idx < len(ekf_data):
+            gt_time_list.append(ekf_data[idx][0])
+            gt_x_list.append(ann['x'])
+            gt_y_list.append(ann['y'])
+            gt_theta_list.append(ann['theta'])
+
     # Plot x, y, theta over time with z_t (measurements)
     plt.figure()
     plt.subplot(3,1,1)
     plt.plot(time_list, predicted_x_list, label='Predicted x', color='blue')
     plt.plot(time_list, z_x_list, label='Measurement x', color='green', linestyle='dashed')
     plt.plot(time_list, filtered_x_list, label='EKF x', color='red')
+    if gt_x_list:
+        plt.scatter(gt_time_list, gt_x_list, marker='*', s=120, color='black', zorder=5, label='Ground truth x')
     plt.ylabel('x (m)')
     plt.legend()
 
@@ -273,6 +292,8 @@ def offline_efk():
     plt.plot(time_list, predicted_y_list, label='Predicted y', color='blue')
     plt.plot(time_list, z_y_list, label='Measurement y', color='green', linestyle='dashed')
     plt.plot(time_list, filtered_y_list, label='EKF y', color='red')
+    if gt_y_list:
+        plt.scatter(gt_time_list, gt_y_list, marker='*', s=120, color='black', zorder=5, label='Ground truth y')
     plt.ylabel('y (m)')
     plt.legend()
 
@@ -280,6 +301,8 @@ def offline_efk():
     plt.plot(time_list, predicted_theta_list, label='Predicted theta', color='blue')
     plt.plot(time_list, z_theta_list, label='Measurement theta', color='green', linestyle='dashed')
     plt.plot(time_list, filtered_theta_list, label='EKF theta', color='red')
+    if gt_theta_list:
+        plt.scatter(gt_time_list, gt_theta_list, marker='*', s=120, color='black', zorder=5, label='Ground truth theta')
     plt.xlabel('Time (s)')
     plt.ylabel('theta (degrees)')
     plt.legend()
@@ -289,4 +312,7 @@ def offline_efk():
 
 ####### MAIN #######
 if __name__ == "__main__":
-    offline_efk()
+    parser = argparse.ArgumentParser(description="Run EKF offline on a robot data log.")
+    parser.add_argument('pkl_file', help="Path to the .pkl log file")
+    args = parser.parse_args()
+    offline_efk(args.pkl_file)
