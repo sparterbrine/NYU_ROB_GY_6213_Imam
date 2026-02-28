@@ -1,6 +1,7 @@
 # External libraries
 import math
 import numpy as np
+from typing import Dict
 
 # UDP parameters
 localIP = "192.168.0.199" # Put your laptop computer's IP here 199
@@ -10,21 +11,52 @@ arduinoPort = 4010
 bufferSize = 1024
 
 # Camera parameters
-camera_id = 0
-marker_length = 0.071
-camera_matrix = np.array([[1.41089024e+03, 0.00000000e+00 ,5.34757040e+02],
- [0.00000000e+00 ,1.40977771e+03, 4.63300611e+02],
- [0.00000000e+00 ,0.00000000e+00 ,1.00000000e+00]], dtype=np.float32)
-dist_coeffs = np.array([-0.32511173, -0.09273864 ,-0.00295959 , 0.00111094 , 0.2446519 ], dtype=np.float32)
+camera_id = 1
+marker_length = 0.094488 # meters
+''' ArUco marker parameters from calibration - the length of the entire thing(not a pixel in it) '''
+camera_matrix = np.array([
+        [
+            682.4174696857553,
+            0.0,
+            260.6779690883052
+        ],
+        [
+            0.0,
+            683.5970425159574,
+            252.2280650657449
+        ],
+        [
+            0.0,
+            0.0,
+            1.0
+        ]
+    ], dtype=np.float64)
+dist_coeffs = np.array([
+            -0.3677610637638757,
+            0.07099775179738238,
+            -0.0007576824618998384,
+            0.0028280822538041144,
+            0.06022962819399466
+        ], dtype=np.float64)
+
 
 # Robot parameters
 num_robot_sensors = 2 # encoder, steering
 num_robot_control_signals = 2 # speed, steering
 
+KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
+        1: {'x': 1.05, 'y': 0.85, 'yaw': 0},   # Close Left
+        3: {'x': 1.05, 'y': -0.95, 'yaw': 90}, # Close Right
+        6: {'x': 1.05, 'y': 0.05,  'yaw': 90}, # Close Center
+        2: {'x': 2.05, 'y': 0.05,  'yaw': 0},  # Mid Center
+        4: {'x': 3.05, 'y': 0.85, 'yaw': 180}, # Far Left
+        5: {'x': 3.05, 'y': -0.95,  'yaw': 90},# Far Right
+    }
+
 # Logging parameters
 max_num_lines_before_write = 1
 filename_start = './data/robot_data'
-data_name_list = ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal', 'state_mean', 'state_covariance']
+data_name_list = ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal', 'state_mean', 'state_covariance', 'frame']
 
 # Experiment trial parameters
 trial_time = 10000 # milliseconds
