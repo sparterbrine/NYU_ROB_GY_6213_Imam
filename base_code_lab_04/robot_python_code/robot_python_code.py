@@ -1,4 +1,7 @@
 # External libraries
+
+from typing import List, Tuple
+
 import serial
 import time
 import pickle
@@ -9,9 +12,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import socket
 from time import strftime
+import os
 
 # Local libraries
 import parameters
+from aruco_pose_estimator import ArucoPoseEstimator
+
+from filters import ThetaFilter
 
 
 # Function to try to connect to the robot via udp over wifi
@@ -57,25 +64,41 @@ class DataLogger:
 
     # Constructor
     def __init__(self, filename_start, data_name_list):
-        self.filename_start = filename_start
-        self.filename = filename_start
+        # Get the absolute path to the data directory relative to this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.join(script_dir, 'data')
+        self.data_dir = data_dir
+        self.filename_start = os.path.join(self.data_dir, os.path.basename(filename_start))
+        self.filename = self.filename_start
         self.line_count = 0
         self.dictionary = {}
         self.data_name_list = data_name_list
         for name in data_name_list:
             self.dictionary[name] = []
         self.currently_logging = False
+        self.next_session_name = None
+
+    # Set a custom name for the next log file (overrides the default control-signal-based name).
+    def set_next_session_name(self, name: str):
+        self.next_session_name = name.replace(' ', '_')
 
     # Open the log file
     def reset_logfile(self, control_signal):
-        self.filename = self.filename_start + "_"+str(control_signal[0])+"_"+str(control_signal[1]) + strftime("_%d_%m_%y_%H_%M_%S.pkl")
+        # Ensure the data directory exists
+        os.makedirs(self.data_dir, exist_ok=True)
+        if self.next_session_name is not None:
+            base = self.next_session_name + strftime("_%d_%m_%y_%H_%M_%S")
+            self.next_session_name = None
+        else:
+            base = "robot_data_" + str(control_signal[0]) + "_" + str(control_signal[1]) + strftime("_%d_%m_%y_%H_%M_%S")
+        self.filename = os.path.join(self.data_dir, base + ".pkl")
         self.dictionary = {}
         for name in self.data_name_list:
             self.dictionary[name] = []
 
         
     # Log one time step of data
-    def log(self, logging_switch_on, time, control_signal, robot_sensor_signal, state_mean, particle_set):
+    def log(self, logging_switch_on, time, control_signal, robot_sensor_signal, state_mean, particle_set, frame=None):
         if not logging_switch_on:
             if self.currently_logging:
                 self.currently_logging = False
@@ -90,6 +113,11 @@ class DataLogger:
             self.dictionary['robot_sensor_signal'].append(robot_sensor_signal)
             self.dictionary['state_mean'].append(state_mean)
             self.dictionary['state_covariance'].append(particle_set)
+            if frame is not None:
+                _, encoded = cv2.imencode('.jpg', frame)
+                self.dictionary['frame'].append(encoded.tobytes())
+            else:
+                self.dictionary['frame'].append(None)
 
             self.line_count += 1
             if self.line_count > parameters.max_num_lines_before_write:
@@ -196,37 +224,71 @@ class MsgReceiver:
 class CameraSensor:
 
     # Constructor
-    def __init__(self, camera_id):
+    def __init__(self, camera_id, video_capture=None):
         self.camera_id = camera_id
-        self.cap = cv2.VideoCapture(camera_id)
-        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
-        self.parameters = aruco.DetectorParameters()
-        self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
+        self.last_frame = None
+        if video_capture:
+            self.cap = video_capture
+        else:
+            self.cap = cv2.VideoCapture(camera_id)
+        self.pose_estimator = ArucoPoseEstimator(
+            camera_matrix=parameters.camera_matrix,
+            dist_coeffs=parameters.dist_coeffs,
+            marker_length=parameters.marker_length,
+            known_markers=parameters.KNOWN_MARKERS,
+            robot_marker_id=7
+        )
+        self.theta_filter = ThetaFilter()
         
     # Get a new pose estimate from a camera image
-    def get_signal(self, last_camera_signal):
+    def get_signal(self, last_camera_signal: List[float]) -> List[float]:
         camera_signal = last_camera_signal
         ret, pose_estimate = self.get_pose_estimate()
         if ret:
             camera_signal = pose_estimate
+            camera_signal[5] = self.theta_filter.filter_pose_theta(camera_signal[5])
         
         return camera_signal
         
     # If there is a new image, calculate a pose estimate from the fiducial tag on the robot.
-    def get_pose_estimate(self):
-        ret, frame = self.cap.read()
+    def get_pose_estimate(self) -> Tuple[bool, List[float]]:
+        """Returns a tuple of (bool, List[float]). The bool indicates if a valid pose estimate was obtained. The list contains the pose estimate in the format [x, y, z, roll, pitch, yaw]."""
+        # Try to read a frame a few times
+        for _ in range(5):
+            ret, frame = self.cap.read()
+            if ret:
+                break
+            time.sleep(0.01) # Wait a bit for the camera to be ready
+
         if not ret:
+            print("Failed to grab frame from camera")
             return False, []
-        
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray)
-        if ids is not None:
-            # Estimate pose for each detected marker
-            for i in range(len(ids)):
-                rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], parameters.marker_length, parameters.camera_matrix, parameters.dist_coeffs)
-                pose_estimate = [tvec[0][0][0], tvec[0][0][1], tvec[0][0][2], rvec[0][0][0], rvec[0][0][1], rvec[0][0][2]]
+
+        self.last_frame = frame
+
+        # --- NEW LOGIC ---
+        # Pass the raw frame to your new estimator class
+        pose_dict, annotated_frame = self.pose_estimator.estimate_pose(frame)
+
+        # If the strict tracking criteria are met, it returns a valid pose
+        if pose_dict is not None:
+            # Extract the values into the 6-element list format your system expects
+            pose_estimate: List[float] = [
+                pose_dict['x'], 
+                pose_dict['y'], 
+                pose_dict['z'], 
+                pose_dict['roll'], 
+                pose_dict['pitch'], 
+                pose_dict['yaw']
+            ]
+            
+            # Optional: Show the live annotated camera feed for debugging
+            # cv2.imshow('Aruco Tracking View', annotated_frame)
+            # cv2.waitKey(1)
+            
             return True, pose_estimate
-        
+            
+        # If the robot marker or the fixed reference marker isn't visible
         return False, []
     
     # Close the camera stream
@@ -240,11 +302,11 @@ class RobotSensorSignal:
 
     # Constructor
     def __init__(self, unpacked_msg):
-        self.encoder_counts = int(unpacked_msg[0])
-        self.steering = int(unpacked_msg[1])
-        self.num_lidar_rays = int(unpacked_msg[2])
-        self.angles = []
-        self.distances = []
+        self.encoder_counts: int = int(unpacked_msg[0])
+        self.steering: int = int(unpacked_msg[1])
+        self.num_lidar_rays: int = int(unpacked_msg[2])
+        self.angles: List[float] = []
+        self.distances: List[float] = []
         for i in range(self.num_lidar_rays):
             index = 3 + i*2
             self.angles.append(unpacked_msg[index])

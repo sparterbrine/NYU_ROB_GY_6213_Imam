@@ -1,4 +1,6 @@
 # External libraries
+from typing import List
+
 import serial
 import time
 import pickle
@@ -10,6 +12,7 @@ import socket
 from time import strftime
 
 # Local libraries
+from motion_models import State
 import parameters
 import particle_filter
 import robot_python_code
@@ -17,17 +20,17 @@ import robot_python_code
 # The core robot class
 class Robot:
 
-    def __init__(self):
+    def __init__(self, video_capture=None):
         self.connected_to_hardware = False
         self.running_trial = False
         self.extra_logging = False
         self.trial_start_time = 0
         self.msg_sender = None
         self.msg_receiver = None
-        self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id)
+        self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id, video_capture)
         self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
-        self.camera_sensor_signal = [0,0,0,0,0,0]
+        self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
         map = particle_filter.Map(parameters.wall_corner_list)
         self.particle_filter = particle_filter.ParticleFilter(parameters.num_particles, map, particle_filter.State(0,0,0), particle_filter.State(1,1,1), True, 0)
         
@@ -45,7 +48,9 @@ class Robot:
 
     def update_state_estimate(self):
         u_t = np.array([self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering]) # robot_sensor_signal
-        z_t = self.robot_sensor_signal
+        '''Encoder counts, Steering Angle'''
+        z_t = np.array([self.camera_sensor_signal[0], self.camera_sensor_signal[1], self.camera_sensor_signal[5]]) # camera_sensor_signal
+        '''Camera X, Camera Y, Camera Theta'''
         delta_t = 0.1
         self.particle_filter.update(u_t, z_t, delta_t)
 

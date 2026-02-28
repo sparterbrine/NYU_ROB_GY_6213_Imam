@@ -15,10 +15,11 @@ from time import time
 from robot import Robot
 import robot_python_code
 import parameters
+from trajectories import TRAJECTORIES, TrajectoryRunner
 
 # Global variables
 logging = False
-stream_video = False
+stream_video = True
 
 
 # Frame converter for the video stream, from OpenCV to a JPEG image
@@ -47,7 +48,11 @@ def get_time_in_ms():
 def main():
 
     # Robot variables
-    robot = Robot()
+    video_capture = None
+    if stream_video:
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    robot = Robot(video_capture)
+    trajectory_runner = TrajectoryRunner()
 
     # Lidar data
     max_lidar_range = 12
@@ -67,18 +72,18 @@ def main():
     
     # Set up the video stream, not needed for lab 1
     if stream_video:
-        video_capture = cv2.VideoCapture(parameters.camera_id)
+        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
     
     # Enable frame grabs from the video stream.
     @app.get('/video/frame')
     async def grab_video_frame() -> Response:
         if not video_capture.isOpened():
-            return placeholder
+            return Response(status_code=204)
         # The `video_capture.read` call is a blocking function.
         # So we run it in a separate thread (default executor) to avoid blocking the event loop.
         _, frame = await run.io_bound(video_capture.read)
         if frame is None:
-            return placeholder
+            return Response(status_code=204)
         # `convert` is a CPU-intensive function, so we run it in a separate process to avoid blocking the event loop and GIL.
         jpeg = await run.cpu_bound(convert, frame)
         return Response(content=jpeg, media_type='image/jpeg')
@@ -111,6 +116,14 @@ def main():
                 logging_switch.value = False
                 robot.extra_logging = False
                 
+
+        # Trajectory runner overrides manual sliders when active
+        if trajectory_runner.is_running:
+            cmd_speed, cmd_steering_angle = trajectory_runner.update()
+            if not trajectory_runner.is_running:
+                logging_switch.value = False
+                trajectory_status_label.set_text('Done')
+            return cmd_speed, cmd_steering_angle
 
         # Regular slider controls
         if speed_switch.value:
@@ -178,6 +191,17 @@ def main():
             plt.style.use('dark_background')
             plt.tick_params(axis='x', colors='lightgray')
             plt.tick_params(axis='y', colors='lightgray')
+            
+            sigma = 3
+            covar_matrix = parameters.covariance_plot_scale * robot.extended_kalman_filter.state_covariance[0:2,0:2]#np.array([[sigma, -sigma*0.9],[ -sigma*0.9, sigma]])
+            x_est = robot.extended_kalman_filter.state_mean[0]
+            y_est = robot.extended_kalman_filter.state_mean[1]
+            lambda_, v = np.linalg.eig(covar_matrix)
+            lambda_ = np.sqrt(lambda_)
+            ell = Ellipse(xy=(x_est, y_est), alpha=0.5, facecolor='red',width=lambda_[0], height=lambda_[1], angle=np.rad2deg(np.arctan2(*v[:,0][::-1])))
+            ax = fig.gca()
+            ax.add_artist(ell)
+
             plt.plot(x_est, y_est, 'ro')
 
             plt.grid(True)
@@ -213,6 +237,9 @@ def main():
             with ui.card().classes('items-center h-60'):
                 ui.label('Encoder:').style('text-align: center;')
                 encoder_count_label = ui.label('0')
+                # New: x, y, theta label
+                ui.label('z_t: x, y, theta').style('text-align: center;')
+                state_label = ui.label('0.0, 0.0, 0.0').style('text-align: center;')
                 logging_switch = ui.switch('Data Logging ')
                 udp_switch = ui.switch('Robot Connect')
                 run_trial_button = ui.button('Run Trial', on_click=lambda:run_trial())
@@ -242,12 +269,52 @@ def main():
                 steering_switch = ui.switch('Enable', on_change=lambda: enable_steering())
         
 
+    # Trajectory runner controls
+    def run_trajectory():
+        name = trajectory_select.value
+        if name:
+            robot.data_logger.set_next_session_name(name)
+            logging_switch.value = True
+            trajectory_runner.start(name)
+            trajectory_status_label.set_text(f'Running: {name}')
+
+    def stop_trajectory():
+        trajectory_runner.stop()
+        logging_switch.value = False
+        trajectory_status_label.set_text('Stopped')
+
+    # Create the trajectory control card
+    with ui.card().classes('w-full'):
+        with ui.grid(columns=4).classes('w-full items-center'):
+            with ui.card().classes('w-full items-center'):
+                ui.label('TRAJECTORY:').style('text-align: center;')
+            with ui.card().classes('w-full items-center'):
+                trajectory_select = ui.select(list(TRAJECTORIES.keys()), value=list(TRAJECTORIES.keys())[0])
+            with ui.card().classes('w-full items-center'):
+                ui.button('Run', on_click=lambda: run_trajectory())
+                ui.button('Stop', on_click=lambda: stop_trajectory())
+            with ui.card().classes('w-full items-center'):
+                trajectory_status_label = ui.label('Idle')
+
     # Update slider values, plots, etc. and run robot control loop
     async def control_loop():
         update_connection_to_robot()
         cmd_speed, cmd_steering_angle = update_commands()
         robot.control_loop(cmd_speed, cmd_steering_angle, logging_switch.value)
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
+        # Update x, y, theta label
+        try:
+            x = float(robot.camera_sensor_signal[0])
+            y = float(robot.camera_sensor_signal[1])
+            theta = float(robot.camera_sensor_signal[5])
+            state_label.set_text(f"{x:.2f}, {y:.2f}, {theta:.2f}")
+        except Exception:
+            state_label.set_text("N/A, N/A, N/A")
+        
+        #update_lidar_data()
+        #show_lidar_plot()
+        # show_localization_plot()
+        update_video(video_image)
         update_lidar_data()
         show_lidar_plot()
         #show_localization_plot()
