@@ -1,5 +1,6 @@
 # External libraries
 import copy
+from typing import List, Tuple
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -8,6 +9,8 @@ import random
 # Local libraries
 import parameters
 import data_handling
+
+XY_range = List[float] # [x_min, x_max, y_min, y_max]
 
 # Helper function to make sure all angles are between -pi and pi
 def angle_wrap(angle):
@@ -47,7 +50,7 @@ class State:
 class Wall:
 
     # Constructor
-    def __init__(self, wall_corners):
+    def __init__(self, wall_corners: XY_range):
         self.corner1 = State(wall_corners[0], wall_corners[1], 0)
         self.corner2 = State(wall_corners[2], wall_corners[3], 0)
         self.corner1_mm = State(wall_corners[0] * 1000, wall_corners[1] * 1000, 0)
@@ -71,21 +74,21 @@ class Wall:
 
 # A class to store 2D maps
 class Map:
-    def __init__(self, wall_corner_list, grid_dimensions):
+    def __init__(self, wall_corner_list: List[XY_range], grid_dimensions: List[XY_range]):
         self.wall_list = []
         for wall_corners in wall_corner_list:
             self.wall_list.append(Wall(wall_corners))
-        min_x = grid_dimensions[0][0]
-        max_x = grid_dimensions[0][1]
-        min_y = grid_dimensions[1][0]
-        max_y = grid_dimensions[1][1]
-        border = 0.5
-        self.plot_range = [min_x - border, max_x + border, min_y - border, max_y + border]
+        min_x: float = grid_dimensions[0][0]
+        max_x: float = grid_dimensions[0][1]
+        min_y: float = grid_dimensions[1][0]
+        max_y: float = grid_dimensions[1][1]
+        border: float = 0.5
+        self.plot_range: XY_range = [min_x - border, max_x + border, min_y - border, max_y + border]
         
-        self.particle_range = [min_x , max_x , min_y, max_y]
+        self.particle_range: XY_range = [min_x , max_x , min_y, max_y]
 
     # Function to calculate the distance between any state and its closest wall, accounting for directon of the state.
-    def closest_distance_to_walls(self, state):
+    def closest_distance_to_walls(self, state: State) -> float:
         closest_distance = 999999999999
         for wall in self.wall_list:
             closest_distance = self.get_distance_to_wall(state, wall, closest_distance)
@@ -94,7 +97,7 @@ class Map:
         
     # Function to get distance to a wall from a state, in the direction of the state's theta angle.
     # Or return the distance currently believed to be the closest if its closer.
-    def get_distance_to_wall(self, state, wall, closest_distance):
+    def get_distance_to_wall(self, state: State, wall: Wall, closest_distance: float) -> float:
         ################## Add student code here ###################
         # Use geometry to calculate the distance from the robot to the wall, for a particular direction state.theta
         # If the direction isn't pointed towards the wall, return closest_distance.
@@ -108,22 +111,22 @@ class Particle:
     
     def __init__(self):
         self.state = State(0, 0, 0)
-        self.weight = 1
+        self.weight: float = 1.
         
     # Function to create a new random particle state within a range
-    def randomize_uniformly(self, xy_range):
+    def randomize_uniformly(self, xy_range: XY_range):
         ################## Add student code here ###################
         self.state = State(0, 0, 0)
-        self.weight = 1
+        self.weight = 1.
 
     # Function to create a new random particle state with a normal distribution
-    def randomize_around_initial_state(self, initial_state, state_stdev):
+    def randomize_around_initial_state(self, initial_state: State, state_stdev):
         ################## Add student code here ###################
         self.state = State(0, 0, 0)
-        self.weight = 1
+        self.weight = 1.
         
     # Function to take a particle and "randomly" propagate it forward according to a motion model.
-    def propagate_state(self, last_state, delta_encoder_counts, steering, delta_t):
+    def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int, delta_t: float):
         ################## Add student code here ###################
         x = 0
         y = 0
@@ -131,53 +134,52 @@ class Particle:
         self.state = State(x, y, theta)
         
     # Function to determine a particles weight based how well the lidar measurement matches up with the map.
-    def calculate_weight(self, lidar_signal, map):
+    def calculate_weight(self, lidar_signal, map: Map):
         ################## Add student code here ###################
         self.weight = 0
         
     # Return the normal distribution function output.
-    def gaussian(self, expected_distance, distance):
+    def gaussian(self, expected_distance: float, distance: float) -> float:
         return math.exp(-math.pow(expected_distance - distance, 2)/ 2 / parameters.distance_variance)
 
     # Deep copy the particle
-    def deepcopy(self):
+    def deepcopy(self) -> "Particle":
         return copy.deepcopy(self)
         
     # Print the particle
-    def print(self):
+    def print(self) -> None:
         print("Particle: ", self.state.x, self.state.y, self.state.theta, " w: ", self.weight)
-
 
 # This class holds the collection of particles.
 class ParticleSet:
     
     # Constructor, which calls the known start or unknown start initialization.
-    def __init__(self, num_particles, xy_range, initial_state, state_stdev, known_start_state):
-        self.num_particles = num_particles
-        self.particle_list = []
+    def __init__(self, num_particles: int, xy_range: XY_range, initial_state: State, state_stdev, known_start_state: bool):
+        self.num_particles: int = num_particles
+        self.particle_list: List[Particle] = []
         if known_start_state:
             self.generate_initial_state_particles(initial_state, state_stdev)
         else:
             self.generate_uniform_random_particles(xy_range)
-        self.mean_state = State(0, 0, 0)
+        self.mean_state: State = State(0, 0, 0)
         self.update_mean_state()
         
     # Function to reset particles and random locations in the workspace.
-    def generate_uniform_random_particles(self, xy_range):
+    def generate_uniform_random_particles(self, xy_range: XY_range):
         for i in range(self.num_particles):
-            random_particle = Particle()
+            random_particle: Particle = Particle()
             random_particle.randomize_uniformly(xy_range)
             self.particle_list.append(random_particle)
 
     # Function to reset particles, normally distributed around the initial state. 
-    def generate_initial_state_particles(self, initial_state, state_stdev):
+    def generate_initial_state_particles(self, initial_state: State, state_stdev):
         for i in range(self.num_particles):
-            random_particle = Particle()
+            random_particle: Particle = Particle()
             random_particle.randomize_around_initial_state(initial_state, state_stdev)
             self.particle_list.append(random_particle)
 
     # Function to resample the particles set, i.e. make a new one with more copies of particles with higher weights.  
-    def resample(self, max_weight):
+    def resample(self, max_weight: float):
         ################## Add student code here ###################
         self.particle_list = self.particle_list
             
@@ -199,7 +201,7 @@ class ParticleSet:
 class ParticleFilter:
     
     # Constructor
-    def __init__(self, num_particles, map, initial_state, state_stdev, known_start_state, encoder_counts_0):
+    def __init__(self, num_particles: int, map: Map, initial_state: State, state_stdev, known_start_state: bool, encoder_counts_0: int):
         self.map = map
         self.particle_set = ParticleSet(num_particles, map.particle_range, initial_state, state_stdev, known_start_state)
         self.state_estimate = self.particle_set.mean_state
@@ -208,15 +210,15 @@ class ParticleFilter:
         self.last_encoder_counts = encoder_counts_0
 
     # Update the states given new measurements
-    def update(self, odometery_signal, measurement_signal, delta_t):
+    def update(self, odometery_signal, measurement_signal, delta_t: float):
         self.prediction(odometery_signal, delta_t)
-        if len(measurement_signal.angles)>0:
+        if len(measurement_signal.angles) > 0:
             self.correction(measurement_signal)
         self.particle_set.update_mean_state()
         self.state_estimate_list.append(self.state_estimate.deepcopy())
 
     # Predict the current state from the last state.
-    def prediction(self, odometry_signal, delta_t):
+    def prediction(self, odometry_signal, delta_t: float):
         ################## Add student code here ###################
         # Calculate the change in encoder counts from the last time step. Leverage self.last_encoder counts
         # odometry_signal has two elements, encoder_counts and steering angle
@@ -239,12 +241,12 @@ class ParticleFilter:
 class ParticleFilterPlot:
 
     # Constructor
-    def __init__(self, map):
-        self.dir_length = 0.1
+    def __init__(self, map: Map):
+        self.dir_length: float = 0.1
         fig, ax = plt.subplots()
         self.ax = ax
         self.fig = fig
-        self.map = map
+        self.map: Map = map
 
     # Clear and update the plot with new PF data
     def update(self, state_mean, particle_set, lidar_signal, hold_show_plot):
