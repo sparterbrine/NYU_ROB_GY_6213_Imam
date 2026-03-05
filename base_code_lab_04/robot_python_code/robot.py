@@ -49,9 +49,8 @@ class Robot:
     def update_state_estimate(self):
         u_t = np.array([self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering]) # robot_sensor_signal
         '''Encoder counts, Steering Angle'''
-        z_t = np.array([self.camera_sensor_signal[0], self.camera_sensor_signal[1], self.camera_sensor_signal[5]]) # camera_sensor_signal
-        '''Camera X, Camera Y, Camera Theta'''
-        delta_t = 0.1
+        z_t = self.robot_sensor_signal
+        delta_t: float = 0.1
         self.particle_filter.update(u_t, z_t, delta_t)
 
     # One iteration of the control loop to be called repeatedly
