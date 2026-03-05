@@ -71,19 +71,14 @@ class Wall:
 
 # A class to store 2D maps
 class Map:
-    def __init__(self, wall_corner_list):
+    def __init__(self, wall_corner_list, grid_dimensions):
         self.wall_list = []
         for wall_corners in wall_corner_list:
             self.wall_list.append(Wall(wall_corners))
-        min_x = 999999
-        max_x = -99999
-        min_y = 999999
-        max_y = -99999
-        for wall in self.wall_list:
-            min_x = min(min_x, min(wall.corner1.x, wall.corner2.x))
-            max_x = max(max_x, max(wall.corner1.x, wall.corner2.x))
-            min_y = min(min_y, min(wall.corner1.y, wall.corner2.y))
-            max_y = max(max_y, max(wall.corner1.y, wall.corner2.y))
+        min_x = grid_dimensions[0][0]
+        max_x = grid_dimensions[0][1]
+        min_y = grid_dimensions[1][0]
+        max_y = grid_dimensions[1][1]
         border = 0.5
         self.plot_range = [min_x - border, max_x + border, min_y - border, max_y + border]
         
@@ -297,7 +292,7 @@ class ParticleFilterPlot:
 def offline_pf():
     
     # Make a map of walls
-    map = Map(parameters.wall_corner_list)
+    map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
 
     # Get data to filter
     filename = './data/robot_data_0_0_25_02_26_21_41_33.pkl'

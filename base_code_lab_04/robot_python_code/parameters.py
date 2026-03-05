@@ -68,6 +68,7 @@ covariance_plot_scale = 100
 
 # PF parameters, modify the map and num particles as you see fit.
 num_particles = 100
+grid_dimensions = [[0., 4.], [-2., 2.]] # [x_min, x_max], [y_min, y_max]
 wall_corner_list = [
     [0, 0, 2.74, 0], 
     [0, 0, 0, 3.78], 
