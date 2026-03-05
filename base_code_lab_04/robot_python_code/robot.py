@@ -31,7 +31,7 @@ class Robot:
         self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
-        map = particle_filter.Map(parameters.wall_corner_list)
+        map = particle_filter.Map(parameters.wall_corner_list, parameters.grid_dimensions)
         self.particle_filter = particle_filter.ParticleFilter(parameters.num_particles, map, particle_filter.State(0,0,0), particle_filter.State(1,1,1), True, 0)
         
     # Create udp senders and receiver instances with the udp communication
