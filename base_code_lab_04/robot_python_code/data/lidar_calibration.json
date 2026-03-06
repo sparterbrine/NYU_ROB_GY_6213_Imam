@@ -1,0 +1,91 @@
+{
+  "lidar_offset_m": 0.15,
+  "calibration_entries": [
+    {
+      "filename": "calibrate_05m.pkl",
+      "known_distance_m": 0.5,
+      "expected_lidar_distance_m": 0.35,
+      "n_samples": 247,
+      "mean_measured_m": 0.349656,
+      "mean_error_m": -0.000344,
+      "variance_m2": 5.936e-05,
+      "std_dev_m": 0.007704
+    },
+    {
+      "filename": "calibrate_1m.pkl",
+      "known_distance_m": 1.0,
+      "expected_lidar_distance_m": 0.85,
+      "n_samples": 334,
+      "mean_measured_m": 0.847835,
+      "mean_error_m": -0.002165,
+      "variance_m2": 0.00014715,
+      "std_dev_m": 0.012131
+    },
+    {
+      "filename": "calibrate_15m.pkl",
+      "known_distance_m": 1.5,
+      "expected_lidar_distance_m": 1.35,
+      "n_samples": 84,
+      "mean_measured_m": 1.254202,
+      "mean_error_m": -0.095798,
+      "variance_m2": 0.00017352,
+      "std_dev_m": 0.013173
+    },
+    {
+      "filename": "calibrate_2m.pkl",
+      "known_distance_m": 2.0,
+      "expected_lidar_distance_m": 1.85,
+      "n_samples": 469,
+      "mean_measured_m": 1.838454,
+      "mean_error_m": -0.011546,
+      "variance_m2": 0.00021159,
+      "std_dev_m": 0.014546
+    },
+    {
+      "filename": "calibrate_1m_45deg.pkl",
+      "known_distance_m": 1.0,
+      "expected_lidar_distance_m": 0.85,
+      "n_samples": 501,
+      "mean_measured_m": 0.935018,
+      "mean_error_m": 0.085018,
+      "variance_m2": 0.00070976,
+      "std_dev_m": 0.026641
+    },
+    {
+      "filename": "calibrate_1m_neg45deg.pkl",
+      "known_distance_m": 1.0,
+      "expected_lidar_distance_m": 0.85,
+      "n_samples": 229,
+      "mean_measured_m": 0.934231,
+      "mean_error_m": 0.084231,
+      "variance_m2": 0.00067849,
+      "std_dev_m": 0.026048
+    }
+  ],
+  "by_distance": {
+    "0.5": {
+      "mean_error_m": -0.000344,
+      "variance_m2": 5.936e-05,
+      "std_dev_m": 0.007704,
+      "n_samples": 247
+    },
+    "1.0": {
+      "mean_error_m": 0.084231,
+      "variance_m2": 0.00067849,
+      "std_dev_m": 0.026048,
+      "n_samples": 229
+    },
+    "1.5": {
+      "mean_error_m": -0.095798,
+      "variance_m2": 0.00017352,
+      "std_dev_m": 0.013173,
+      "n_samples": 84
+    },
+    "2.0": {
+      "mean_error_m": -0.011546,
+      "variance_m2": 0.00021159,
+      "std_dev_m": 0.014546,
+      "n_samples": 469
+    }
+  }
+}
