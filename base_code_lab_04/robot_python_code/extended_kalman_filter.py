@@ -14,7 +14,8 @@ from filters import ThetaFilter
 import parameters
 import data_handling
 
-from motion_models import distance_travelled_s, rotational_velocity_w, state_prediction, State, variance_distance_travelled_s, variance_rotational_velocity_w
+from motion_models import distance_travelled_s, rotational_velocity_w, state_prediction, variance_distance_travelled_s, variance_rotational_velocity_w
+from particle_filter import State
 
 # Main class
 class ExtendedKalmanFilter:

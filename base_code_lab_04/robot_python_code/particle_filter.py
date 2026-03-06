@@ -24,27 +24,62 @@ def angle_wrap(angle):
 class State:
 
     # Constructor
-    def __init__(self, x, y, theta):
-        self.x = x
-        self.y = y
-        self.theta = theta
+    def __init__(self, x: float, y: float, theta: float):
+        self.x: float = x
+        self.y: float = y
+        self.theta: float = theta
 
     # Get the euclidean distance between 2 states
-    def distance_to(self, other_state):
+    def distance_to(self, other_state: "State") -> float:
         return math.sqrt(math.pow(self.x - other_state.x, 2) + math.pow(self.y - other_state.y, 2))
         
     # Get the distance squared between two states
-    def distance_to_squared(self, other_state):
+    def distance_to_squared(self, other_state: "State") -> float:
         return math.pow(self.x - other_state.x, 2) + math.pow(self.y - other_state.y, 2)
 
     # return a deep copy of the state.
-    def deepcopy(self):
+    def deepcopy(self) -> "State":
         return copy.deepcopy(self)
         
     # Print the state
-    def print(self):
+    def print(self) -> None:
         print("State: ",self.x, self.y, self.theta)
 
+    def to_array(self) -> np.ndarray:
+        """Return state as a numpy array [x, y, theta]"""
+        return np.array([self.x, self.y, self.theta])
+
+    @classmethod
+    def from_array(cls, arr: np.ndarray) -> "State":
+        """Create State from array-like [x, y, theta]"""
+        return cls(arr[0], arr[1], arr[2])
+
+    def __getitem__(self, idx: int) -> float:
+        if idx == 0:
+            return self.x
+        elif idx == 1:
+            return self.y
+        elif idx == 2:
+            return self.theta
+        else:
+            raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
+
+    def __setitem__(self, idx: int, value: float) -> None:
+        if idx == 0:
+            self.x = value
+        elif idx == 1:
+            self.y = value
+        elif idx == 2:
+            self.theta = value
+        else:
+            raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
+
+    def __sub__(self, other: "State") -> "State":
+        return State(self.x - other.x, self.y - other.y, self.theta - other.theta)
+    
+    
+    def __add__(self, other: "State") -> "State":
+        return State(self.x + other.x, self.y + other.y, self.theta + other.theta)
 
 # Class to store walls as objects (specifically when represented as line segments in a 2D map.)
 class Wall:
