@@ -134,12 +134,41 @@ class Map:
     # Function to get distance to a wall from a state, in the direction of the state's theta angle.
     # Or return the distance currently believed to be the closest if its closer.
     def get_distance_to_wall(self, state: State, wall: Wall, closest_distance: float) -> float:
-        ################## Add student code here ###################
-        # Use geometry to calculate the distance from the robot to the wall, for a particular direction state.theta
-        # If the direction isn't pointed towards the wall, return closest_distance.
-        # Suggestion: Thoroughly test your code with unit tests before using
-        
-        return 0
+        # Ray-segment intersection using parametric form.
+        # Ray:     P(t) = O + t*D,        t >= 0,  D = unit direction vector
+        # Segment: Q(s) = A + s*(B - A),  s in [0, 1]
+        #
+        # Solving O + t*D = A + s*(B-A):
+        #   denom = D × W   (2D cross product, D = ray dir, W = B-A)
+        #   t     = (V × W) / denom   (V = A - O)
+        #   s     = (D_perp · V) / denom
+        # Intersection is valid when t > 0 (forward) and 0 <= s <= 1 (within segment).
+        # Because D is a unit vector, t equals the Euclidean distance to the wall.
+
+        ox, oy = state.x, state.y
+        dx = math.cos(state.theta)
+        dy = math.sin(state.theta)
+
+        ax, ay = wall.corner1.x, wall.corner1.y
+        bx, by = wall.corner2.x, wall.corner2.y
+
+        wx = bx - ax   # wall direction
+        wy = by - ay
+
+        vx = ax - ox   # vector from ray origin to wall start
+        vy = ay - oy
+
+        denom = dx * wy - dy * wx   # D × W
+        if abs(denom) < 1e-10:      # ray is parallel to wall
+            return closest_distance
+
+        t = (vx * wy - wx * vy) / denom
+        s = (dy * vx - dx * vy) / denom
+
+        if t > 1e-10 and 0.0 <= s <= 1.0 and t < closest_distance:
+            return t
+
+        return closest_distance
 
 
 # Class to hold a particle
@@ -151,28 +180,63 @@ class Particle:
         
     # Function to create a new random particle state within a range
     def randomize_uniformly(self, xy_range: XY_range):
-        ################## Add student code here ###################
-        self.state = State(0., 0., 0.)
+        # xy_range = [x_min, x_max, y_min, y_max]
+        x = random.uniform(xy_range[0], xy_range[1])
+        y = random.uniform(xy_range[2], xy_range[3])
+        theta = random.uniform(-math.pi, math.pi)
+        self.state = State(x, y, theta)
         self.weight = 1.
 
     # Function to create a new random particle state with a normal distribution
     def randomize_around_initial_state(self, initial_state: State, state_stdev):
-        ################## Add student code here ###################
-        self.state = State(0., 0., 0.)
+        x     = random.gauss(initial_state.x,     state_stdev.x)
+        y     = random.gauss(initial_state.y,     state_stdev.y)
+        theta = angle_wrap(random.gauss(initial_state.theta, state_stdev.theta))
+        self.state = State(x, y, theta)
         self.weight = 1.
-        
+
     # Function to take a particle and "randomly" propagate it forward according to a motion model.
     def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int, delta_t: float):
-        ################## Add student code here ###################
-        x = 0.
-        y = 0.
-        theta = 0.
+        # --- Tune these constants to match your robot ---
+        METERS_PER_COUNT = 0.00078  # encoder counts → meters (calibrate!)
+        WHEELBASE_M      = 0.17     # front-to-rear axle distance in meters
+        # --- Motion noise standard deviations ---
+        DIST_NOISE_STD  = 0.01   # m
+        THETA_NOISE_STD = 0.02   # rad
+
+        # Convert encoder counts to forward distance with noise
+        distance = delta_encoder_counts * METERS_PER_COUNT + random.gauss(0, DIST_NOISE_STD)
+
+        # Steering in degrees → radians, with noise
+        steering_rad = math.radians(steering) + random.gauss(0, math.radians(1))
+
+        # Bicycle (Ackermann) kinematic model
+        delta_theta = distance * math.tan(steering_rad) / WHEELBASE_M
+
+        mid_theta = last_state.theta + delta_theta / 2
+        x     = last_state.x + distance * math.cos(mid_theta)
+        y     = last_state.y + distance * math.sin(mid_theta)
+        theta = angle_wrap(last_state.theta + delta_theta + random.gauss(0, THETA_NOISE_STD))
+
         self.state = State(x, y, theta)
-        
+
     # Function to determine a particles weight based how well the lidar measurement matches up with the map.
     def calculate_weight(self, lidar_signal, map: Map):
-        ################## Add student code here ###################
-        self.weight = 0.
+        # Accumulate log-likelihood over all rays to avoid floating-point underflow.
+        # The final linear weight is set by correction() after normalising across all particles.
+        log_weight = 0.0
+        for i in range(lidar_signal.num_lidar_rays):
+            angle_rad  = lidar_signal.convert_hardware_angle(lidar_signal.angles[i])
+            distance_m = lidar_signal.convert_hardware_distance(lidar_signal.distances[i])
+
+            # Build a state pointing in the direction of this lidar ray
+            ray_theta = angle_wrap(self.state.theta + angle_rad)
+            ray_state = State(self.state.x, self.state.y, ray_theta)
+
+            expected_distance = map.closest_distance_to_walls(ray_state)
+            log_weight -= (expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance)
+
+        self.weight = log_weight  # stored as log; correction() converts to linear
         
     # Return the normal distribution function output.
     def gaussian(self, expected_distance: float, distance: float) -> float:
@@ -214,18 +278,46 @@ class ParticleSet:
             random_particle.randomize_around_initial_state(initial_state, state_stdev)
             self.particle_list.append(random_particle)
 
-    # Function to resample the particles set, i.e. make a new one with more copies of particles with higher weights.  
-    def resample(self, max_weight: float):
-        ################## Add student code here ###################
-        self.particle_list = self.particle_list
-            
-    # Calculate the mean state. 
+    # Function to resample the particles set, i.e. make a new one with more copies of particles with higher weights.
+    def resample(self):
+        # Systematic resampling (low-variance resampling).
+        # Step size is based on total weight so the CDF is swept exactly N times.
+        total_weight = sum(p.weight for p in self.particle_list)
+        if total_weight == 0:
+            return
+        new_list: List[Particle] = []
+        N = self.num_particles
+        step = total_weight / N
+        target = random.uniform(0, step)   # single random offset
+        cumulative = 0.0
+        j = 0
+        for i in range(N):
+            while cumulative < target and j < N:
+                cumulative += self.particle_list[j].weight
+                j += 1
+            new_list.append(self.particle_list[j - 1].deepcopy())
+            target += step
+        self.particle_list = new_list
+
+    # Calculate the mean state.
     def update_mean_state(self):
-        ################## Add student code here ###################
-        ## Be careful how you calculate the mean theta
-        self.mean_state.x = 0.
-        self.mean_state.y = 0.
-        self.mean_state.theta = 0.
+        # x and y: weighted mean (weights need not be normalised).
+        # theta: circular mean using unit-vector averaging to handle wrap-around.
+        total_weight = sum(p.weight for p in self.particle_list)
+        if total_weight == 0:
+            return
+
+        mean_x = sum(p.state.x * p.weight for p in self.particle_list) / total_weight
+        mean_y = sum(p.state.y * p.weight for p in self.particle_list) / total_weight
+
+        # Circular mean for theta
+        sin_sum = sum(math.sin(p.state.theta) * p.weight for p in self.particle_list)
+        cos_sum = sum(math.cos(p.state.theta) * p.weight for p in self.particle_list)
+        mean_theta = math.atan2(sin_sum, cos_sum)
+
+        self.mean_state.x     = mean_x
+        self.mean_state.y     = mean_y
+        self.mean_state.theta = mean_theta
         
     # Print the particle set. Useful for debugging.
     def print_particles(self) -> None:
@@ -255,18 +347,29 @@ class ParticleFilter:
 
     # Predict the current state from the last state.
     def prediction(self, odometry_signal: RobotControlSignal, delta_t: float):
-        ################## Add student code here ###################
-        # Calculate the change in encoder counts from the last time step. Leverage self.last_encoder counts
-        # odometry_signal has two elements, encoder_counts and steering angle
-        # Next use a motion model to randomly propagate all particles from a deep copy of their current state. 
-        # Be sure to use the Particle class propagate state function.
-        return
-        
-    # Corrrect the predicted states.
+        # odometry_signal.cmd_speed carries the cumulative encoder count;
+        # cmd_steering_angle carries the current steering angle (degrees).
+        delta_encoder_counts = odometry_signal.cmd_speed - self.last_encoder_counts
+        self.last_encoder_counts = odometry_signal.cmd_speed
+        steering = odometry_signal.cmd_steering_angle
+
+        for particle in self.particle_set.particle_list:
+            last_state = particle.state.deepcopy()
+            particle.propagate_state(last_state, delta_encoder_counts, steering, delta_t)
+
+    # Correct the predicted states.
     def correction(self, measurement_signal: RobotSensorSignal):
-        ################## Add student code here ###################
-        # Determine the max weight and use it to resample the particle set.
-        max_weight = 0
+        # Compute log-likelihood for every particle.
+        for particle in self.particle_set.particle_list:
+            particle.calculate_weight(measurement_signal, self.map)
+
+        # Convert log-weights to linear using the log-sum-exp trick (subtract max to prevent underflow).
+        log_weights = [p.weight for p in self.particle_set.particle_list]
+        max_log = max(log_weights)
+        for p, lw in zip(self.particle_set.particle_list, log_weights):
+            p.weight = math.exp(lw - max_log)
+
+        self.particle_set.resample()
         
     # Output to terminal the mean state.
     def print_state_estimate(self):
@@ -327,18 +430,17 @@ class ParticleFilterPlot:
         
 
 # Function used to test your PF offline with logged data.
-def offline_pf():
-    
+def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
+
     # Make a map of walls
     map: Map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
 
     # Get data to filter
-    filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'
     pf_data: list = data_handling.get_file_data_for_pf(filename)
     '''List of trios [timestamp, control_signal, robot_sensor_signal]'''
 
-    # Instantiate PF with no initial guess
-    particle_filter: ParticleFilter = ParticleFilter(parameters.num_particles, map, initial_state = State(0.5, 2.0, 1.57), state_stdev = State(0.1,0.1,0.1), known_start_state=True, encoder_counts_0=pf_data[0][2].encoder_counts)
+    # Instantiate PF with uniform distribution across the workspace
+    particle_filter: ParticleFilter = ParticleFilter(parameters.num_particles, map, initial_state = State(0.5, 2.0, 1.57), state_stdev = State(0.1,0.1,0.1), known_start_state=False, encoder_counts_0=pf_data[0][2].encoder_counts)
 
     # Create plotting tool for particles
     particle_filter_plot: ParticleFilterPlot = ParticleFilterPlot(map)
@@ -361,4 +463,9 @@ def offline_pf():
 
 ####### MAIN #######
 if __name__ == '__main__':
-    offline_pf()
+    import sys
+    # robot_python_code forces the Agg (non-interactive) backend for NiceGUI.
+    # Switch back to an interactive backend when running this script directly.
+    plt.switch_backend('TkAgg')
+    path = sys.argv[1] if len(sys.argv) > 1 else './data/robot_data_0_0_25_02_26_21_41_33.pkl'
+    offline_pf(path)
