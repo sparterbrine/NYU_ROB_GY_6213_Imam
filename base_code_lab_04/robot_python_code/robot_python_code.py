@@ -1,6 +1,9 @@
 # External libraries
 
-from typing import Dict, List, Optional, Tuple, Union
+from __future__ import annotations
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+if TYPE_CHECKING:
+    from particle_filter import State, ParticleSet
 
 import serial
 import time
@@ -9,13 +12,14 @@ import cv2
 import cv2.aruco as aruco
 import math
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import socket
 from time import strftime
 import os
 
 # Local libraries
-from particle_filter import State, ParticleSet
 import parameters
 from aruco_pose_estimator import ArucoPoseEstimator
 
@@ -30,7 +34,7 @@ def create_udp_communication(arduinoIP, localIP, arduinoPort, localPort, bufferS
         return udp, True
     except:
         print("Failed to create udp communication!")
-        return _, False
+        return None, False
         
         
 # Class to hold the UPD over wifi connection setup
