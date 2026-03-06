@@ -1,4 +1,6 @@
 # External Libraries
+from typing import List
+
 import matplotlib.pyplot as plt
 from pathlib import Path
 import math
@@ -9,6 +11,8 @@ import parameters
 import robot_python_code
 import motion_models
 
+from robot_python_code import RobotSensorSignal
+
 
 # Open a file and return data in a form ready to plot
 def get_file_data(filename):
@@ -16,9 +20,9 @@ def get_file_data(filename):
     data_dict = data_loader.load()
 
     # The dictionary should have keys ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal']
-    time_list = data_dict['time']
+    time_list: List[float] = data_dict['time']
     control_signal_list = data_dict['control_signal']
-    robot_sensor_signal_list = data_dict['robot_sensor_signal']
+    robot_sensor_signal_list: List[RobotSensorSignal] = data_dict['robot_sensor_signal']
     camera_sensor_signal_list = data_dict['camera_sensor_signal']
     
     encoder_count_list = []
@@ -54,7 +58,7 @@ def get_file_data_for_kf(filename):
     # The dictionary should have keys ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal']
     time_list = data_dict['time']
     control_signal_list = data_dict['control_signal']
-    robot_sensor_signal_list = data_dict['robot_sensor_signal']
+    robot_sensor_signal_list: List[RobotSensorSignal] = data_dict['robot_sensor_signal']
     camera_sensor_signal_list = data_dict['camera_sensor_signal']
     
     # Pack up what is needed for KF

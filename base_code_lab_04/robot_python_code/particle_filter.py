@@ -86,16 +86,16 @@ class Wall:
 
     # Constructor
     def __init__(self, wall_corners: XY_range):
-        self.corner1 = State(wall_corners[0], wall_corners[1], 0)
-        self.corner2 = State(wall_corners[2], wall_corners[3], 0)
-        self.corner1_mm = State(wall_corners[0] * 1000, wall_corners[1] * 1000, 0)
-        self.corner2_mm = State(wall_corners[2] * 1000, wall_corners[3] * 1000, 0)
+        self.corner1: State = State(wall_corners[0], wall_corners[1], 0)
+        self.corner2: State = State(wall_corners[2], wall_corners[3], 0)
+        self.corner1_mm: State = State(wall_corners[0] * 1000, wall_corners[1] * 1000, 0)
+        self.corner2_mm: State = State(wall_corners[2] * 1000, wall_corners[3] * 1000, 0)
         
-        self.m = (wall_corners[3] - wall_corners[1])/(0.0001 + wall_corners[2] -  wall_corners[0])
-        self.b = wall_corners[3] - self.m * wall_corners[2]
-        self.b_mm =  wall_corners[3] * 1000 - self.m * wall_corners[2] * 1000
-        self.length = self.corner1.distance_to(self.corner2)
-        self.length_mm_squared = self.corner1_mm.distance_to_squared(self.corner2_mm)
+        self.m: float = (wall_corners[3] - wall_corners[1])/(0.0001 + wall_corners[2] -  wall_corners[0])
+        self.b: float = wall_corners[3] - self.m * wall_corners[2]
+        self.b_mm: float =  wall_corners[3] * 1000 - self.m * wall_corners[2] * 1000
+        self.length: float = self.corner1.distance_to(self.corner2)
+        self.length_mm_squared: float = self.corner1_mm.distance_to_squared(self.corner2_mm)
         
         if self.m > 1000:
             self.vertical = True

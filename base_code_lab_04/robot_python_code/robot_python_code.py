@@ -1,6 +1,6 @@
 # External libraries
 
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import serial
 import time
@@ -64,20 +64,19 @@ class UDPCommunication:
 class DataLogger:
 
     # Constructor
-    def __init__(self, filename_start, data_name_list):
+    def __init__(self, filename_start: str, data_name_list: List[str]):
         # Get the absolute path to the data directory relative to this script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.join(script_dir, 'data')
-        self.data_dir = data_dir
-        self.filename_start = os.path.join(self.data_dir, os.path.basename(filename_start))
-        self.filename = self.filename_start
-        self.line_count = 0
-        self.dictionary = {}
-        self.data_name_list = data_name_list
+        self.data_dir: str = os.path.join(script_dir, 'data')
+        self.filename_start: str= os.path.join(self.data_dir, os.path.basename(filename_start))
+        self.filename: str = self.filename_start
+        self.line_count: int = 0
+        self.dictionary: Dict[str, List[float|State|'RobotSensorSignal'|ParticleSet|bytes|None]] = {}
+        self.data_name_list: List[str] = data_name_list
         for name in data_name_list:
             self.dictionary[name] = []
-        self.currently_logging = False
-        self.next_session_name = None
+        self.currently_logging: bool= False
+        self.next_session_name: Optional[str] = None
 
     # Set a custom name for the next log file (overrides the default control-signal-based name).
     def set_next_session_name(self, name: str):
@@ -99,7 +98,7 @@ class DataLogger:
 
         
     # Log one time step of data
-    def log(self, logging_switch_on, time, control_signal, robot_sensor_signal, state_mean, particle_set, frame=None):
+    def log(self, logging_switch_on: bool, time: float, control_signal, robot_sensor_signal: 'RobotSensorSignal', state_mean: State, particle_set: ParticleSet, frame=None):
         if not logging_switch_on:
             if self.currently_logging:
                 self.currently_logging = False
@@ -323,8 +322,8 @@ class RobotSensorSignal:
         print(" distances: ", self.distances)
     
     # Convert the sensor signal to a list of ints and floats.
-    def to_list(self):
-        sensor_data_list = []
+    def to_list(self) -> list:
+        sensor_data_list: list = []
         sensor_data_list.append(self.encoder_counts)
         sensor_data_list.append(self.steering)
         sensor_data_list.append(self.num_lidar_rays)
@@ -335,9 +334,9 @@ class RobotSensorSignal:
         return sensor_data_list
     
     # Put lidar angles in the correct units and correct direction.
-    def convert_hardware_angle(self, angle):
+    def convert_hardware_angle(self, angle: float) -> float:
         return -angle * math.pi / 180 # degrees to rad
     
     # Put lidar distances in the correct units.
-    def convert_hardware_distance(self, distance):
+    def convert_hardware_distance(self, distance: float) -> float:
         return distance / 1000 # mm to m
