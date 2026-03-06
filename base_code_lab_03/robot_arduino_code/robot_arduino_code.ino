@@ -7,7 +7,7 @@
 #define NoSignalDeltaTimeInMs 2000 // Number ms between message receives from laptop before stopping robot
 char ssid[] = "Tenda_7F7980";      // REPLACE with your team's router ssid
 char pass[] = "50642700";          // REPLACE with your team's router password
-char remoteIP[] = "192.168.0.198";// "192.168.0.199"; // REPLACE with your laptop's IP address on your team's router
+char remoteIP[] = "192.168.0.197";// "192.168.0.199"; // REPLACE with your laptop's IP address on your team's router
 unsigned int localPort = 4010;     // local port to listen on - no need to change
 unsigned int remotePort = 4010;    // local port to listen on - no need to change
 int status = WL_IDLE_STATUS;
@@ -40,7 +40,7 @@ Servo myServo;
 // Encoder setup
 #define EncoderOutputA 4          // Encoder output pin A
 #define EncoderOutputB 5          // Encoder output pin B
-#define steering_angle_center 75  // REPLACE with team center angle for servor steering
+#define steering_angle_center 108  // REPLACE with team center angle for servor steering
 int a_state;
 int encoder_a_last_state; 
 int encoder_count;
@@ -91,16 +91,16 @@ void setup()
   Udp.begin(localPort);
 
   // Bind the RPLIDAR driver to the arduino hardware serial
-  //Serial2.begin(460800);
-  //lidar.begin(Serial2);
-  //delay(1000);
-  //if (lidar.begin(Serial2)) {
-  //  Serial.println("Started Lidar!");
-  //} else {
-  //  Serial.println("Failed Lidar!");
-  //}
-  //pinMode(RPLidarMotorPin, OUTPUT);
-  //reset_lidar_message();
+  Serial2.begin(460800);
+  lidar.begin(Serial2);
+  delay(1000);
+  if (lidar.begin(Serial2)) {
+   Serial.println("Started Lidar!");
+  } else {
+   Serial.println("Failed Lidar!");
+  }
+  pinMode(RPLidarMotorPin, OUTPUT);
+  reset_lidar_message();
 
   // Set up speed control
 	pinMode(RightMotorDirPin1, OUTPUT); 
@@ -205,7 +205,7 @@ SensorSignal get_sensor_signal(float steering_angle) {
   last_sensor_signal.encoder_count = encoder_count;
 
   // Update the lidar scan
-  //lidar_update();
+  lidar_update();
 
   return last_sensor_signal;
 }
@@ -220,7 +220,7 @@ void lidar_update() {
       current_lidar_scan_data +=  "," + String(angle) + "," + String(int(distance));
     }
   } else {
-    analogWrite(RPLidarMotorPin, 255); //stop the rplidar motor
+    analogWrite(RPLidarMotorPin, 0); //stop the rplidar motor
     
     // try to detect RPLIDAR... 
     rplidar_response_device_info_t info;
