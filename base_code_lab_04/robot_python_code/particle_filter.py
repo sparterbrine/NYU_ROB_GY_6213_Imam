@@ -7,13 +7,14 @@ import numpy as np
 import random
 
 # Local libraries
+from robot_python_code import RobotControlSignal, RobotSensorSignal
 import parameters
 import data_handling
 
 XY_range = List[float] # [x_min, x_max, y_min, y_max]
 
 # Helper function to make sure all angles are between -pi and pi
-def angle_wrap(angle):
+def angle_wrap(angle: float) -> float:
     while angle > math.pi:
         angle -= 2*math.pi
     while angle < -math.pi:
@@ -145,33 +146,33 @@ class Map:
 class Particle:
     
     def __init__(self):
-        self.state = State(0, 0, 0)
+        self.state: State = State(0., 0., 0.)
         self.weight: float = 1.
         
     # Function to create a new random particle state within a range
     def randomize_uniformly(self, xy_range: XY_range):
         ################## Add student code here ###################
-        self.state = State(0, 0, 0)
+        self.state = State(0., 0., 0.)
         self.weight = 1.
 
     # Function to create a new random particle state with a normal distribution
     def randomize_around_initial_state(self, initial_state: State, state_stdev):
         ################## Add student code here ###################
-        self.state = State(0, 0, 0)
+        self.state = State(0., 0., 0.)
         self.weight = 1.
         
     # Function to take a particle and "randomly" propagate it forward according to a motion model.
     def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int, delta_t: float):
         ################## Add student code here ###################
-        x = 0
-        y = 0
-        theta = 0
+        x = 0.
+        y = 0.
+        theta = 0.
         self.state = State(x, y, theta)
         
     # Function to determine a particles weight based how well the lidar measurement matches up with the map.
     def calculate_weight(self, lidar_signal, map: Map):
         ################## Add student code here ###################
-        self.weight = 0
+        self.weight = 0.
         
     # Return the normal distribution function output.
     def gaussian(self, expected_distance: float, distance: float) -> float:
@@ -196,7 +197,7 @@ class ParticleSet:
             self.generate_initial_state_particles(initial_state, state_stdev)
         else:
             self.generate_uniform_random_particles(xy_range)
-        self.mean_state: State = State(0, 0, 0)
+        self.mean_state: State = State(0., 0., 0.)
         self.update_mean_state()
         
     # Function to reset particles and random locations in the workspace.
@@ -222,12 +223,12 @@ class ParticleSet:
     def update_mean_state(self):
         ################## Add student code here ###################
         ## Be careful how you calculate the mean theta
-        self.mean_state.x = 0
-        self.mean_state.y = 0
-        self.mean_state.theta = 0
+        self.mean_state.x = 0.
+        self.mean_state.y = 0.
+        self.mean_state.theta = 0.
         
     # Print the particle set. Useful for debugging.
-    def print_particles(self):
+    def print_particles(self) -> None:
         for particle in self.particle_list:
             particle.print()
         print()
@@ -237,15 +238,15 @@ class ParticleFilter:
     
     # Constructor
     def __init__(self, num_particles: int, map: Map, initial_state: State, state_stdev, known_start_state: bool, encoder_counts_0: int):
-        self.map = map
-        self.particle_set = ParticleSet(num_particles, map.particle_range, initial_state, state_stdev, known_start_state)
-        self.state_estimate = self.particle_set.mean_state
-        self.state_estimate_list = []
-        self.last_time = 0
-        self.last_encoder_counts = encoder_counts_0
+        self.map: Map = map
+        self.particle_set: ParticleSet = ParticleSet(num_particles, map.particle_range, initial_state, state_stdev, known_start_state)
+        self.state_estimate: State = self.particle_set.mean_state
+        self.state_estimate_list: List[State] = []
+        self.last_time: float = 0.
+        self.last_encoder_counts: int = encoder_counts_0
 
     # Update the states given new measurements
-    def update(self, odometery_signal, measurement_signal, delta_t: float):
+    def update(self, odometery_signal: RobotControlSignal, measurement_signal: RobotSensorSignal, delta_t: float):
         self.prediction(odometery_signal, delta_t)
         if len(measurement_signal.angles) > 0:
             self.correction(measurement_signal)
@@ -253,7 +254,7 @@ class ParticleFilter:
         self.state_estimate_list.append(self.state_estimate.deepcopy())
 
     # Predict the current state from the last state.
-    def prediction(self, odometry_signal, delta_t: float):
+    def prediction(self, odometry_signal: RobotControlSignal, delta_t: float):
         ################## Add student code here ###################
         # Calculate the change in encoder counts from the last time step. Leverage self.last_encoder counts
         # odometry_signal has two elements, encoder_counts and steering angle
@@ -262,7 +263,7 @@ class ParticleFilter:
         return
         
     # Corrrect the predicted states.
-    def correction(self, measurement_signal):
+    def correction(self, measurement_signal: RobotSensorSignal):
         ################## Add student code here ###################
         # Determine the max weight and use it to resample the particle set.
         max_weight = 0
@@ -284,7 +285,7 @@ class ParticleFilterPlot:
         self.map: Map = map
 
     # Clear and update the plot with new PF data
-    def update(self, state_mean, particle_set, lidar_signal, hold_show_plot):
+    def update(self, state_mean: State, particle_set: ParticleSet, lidar_signal: RobotSensorSignal, hold_show_plot: bool):
         plt.clf()
         
         # Plot walls
@@ -329,24 +330,25 @@ class ParticleFilterPlot:
 def offline_pf():
     
     # Make a map of walls
-    map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
+    map: Map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
 
     # Get data to filter
-    filename = './data/robot_data_0_0_25_02_26_21_41_33.pkl'
-    pf_data = data_handling.get_file_data_for_pf(filename)
+    filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'
+    pf_data: list = data_handling.get_file_data_for_pf(filename)
+    '''List of trios [timestamp, control_signal, robot_sensor_signal]'''
 
     # Instantiate PF with no initial guess
-    particle_filter = ParticleFilter(parameters.num_particles, map, initial_state = State(0.5, 2.0, 1.57), state_stdev = State(0.1,0.1,0.1), known_start_state=True, encoder_counts_0=pf_data[0][2].encoder_counts)
+    particle_filter: ParticleFilter = ParticleFilter(parameters.num_particles, map, initial_state = State(0.5, 2.0, 1.57), state_stdev = State(0.1,0.1,0.1), known_start_state=True, encoder_counts_0=pf_data[0][2].encoder_counts)
 
     # Create plotting tool for particles
-    particle_filter_plot = ParticleFilterPlot(map)
+    particle_filter_plot: ParticleFilterPlot = ParticleFilterPlot(map)
 
     # Loop over pf data
     for t in range(1, len(pf_data)):
         row = pf_data[t]
-        delta_t = pf_data[t][0] - pf_data[t-1][0] # time step size
-        u_t = np.array([row[2].encoder_counts, row[2].steering]) # robot_sensor_signal
-        z_t = row[2] # lidar_sensor_signal
+        delta_t: float = pf_data[t][0] - pf_data[t-1][0] # time step size
+        u_t: RobotControlSignal = RobotControlSignal(row[1][0], row[1][1]) # robot_sensor_signal
+        z_t: RobotSensorSignal = row[2] # lidar_sensor_signal
 
         # Run the PF for a time step
         particle_filter.update(u_t, z_t, delta_t)

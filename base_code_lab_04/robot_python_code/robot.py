@@ -66,7 +66,7 @@ class Robot:
         self.update_state_estimate()
 
         # Update control signals
-        control_signal = [cmd_speed, cmd_steering_angle]
+        control_signal: List[int] = [cmd_speed, cmd_steering_angle]
                 
         # Send msg
         if self.msg_receiver != None:

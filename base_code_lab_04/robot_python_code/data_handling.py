@@ -78,7 +78,7 @@ def get_file_data_for_pf(filename):
 
     # The dictionary should have keys ['time', 'control_signal', 'robot_sensor_signal', 'camera_sensor_signal']
     time_list = data_dict['time']
-    control_signal_list = data_dict['control_signal']
+    control_signal_list: List[List[int]] = data_dict['control_signal']
     robot_sensor_signal_list = data_dict['robot_sensor_signal']
     
     # Pack up what is needed for KF

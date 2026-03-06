@@ -71,7 +71,7 @@ class DataLogger:
         self.filename_start: str= os.path.join(self.data_dir, os.path.basename(filename_start))
         self.filename: str = self.filename_start
         self.line_count: int = 0
-        self.dictionary: Dict[str, List[float|State|'RobotSensorSignal'|ParticleSet|bytes|None]] = {}
+        self.dictionary: Dict[str, List[float|State|'RobotSensorSignal'|ParticleSet|bytes|List[int]|None]] = {}
         self.data_name_list: List[str] = data_name_list
         for name in data_name_list:
             self.dictionary[name] = []
@@ -98,7 +98,7 @@ class DataLogger:
 
         
     # Log one time step of data
-    def log(self, logging_switch_on: bool, time: float, control_signal, robot_sensor_signal: 'RobotSensorSignal', state_mean: State, particle_set: ParticleSet, frame=None):
+    def log(self, logging_switch_on: bool, time: float, control_signal: List[int], robot_sensor_signal: 'RobotSensorSignal', state_mean: State, particle_set: ParticleSet, frame=None):
         if not logging_switch_on:
             if self.currently_logging:
                 self.currently_logging = False
@@ -340,3 +340,10 @@ class RobotSensorSignal:
     # Put lidar distances in the correct units.
     def convert_hardware_distance(self, distance: float) -> float:
         return distance / 1000 # mm to m
+
+class RobotControlSignal:
+
+    # Constructor
+    def __init__(self, cmd_speed: int, cmd_steering_angle: int):
+        self.cmd_speed: int = cmd_speed
+        self.cmd_steering_angle: int = cmd_steering_angle
