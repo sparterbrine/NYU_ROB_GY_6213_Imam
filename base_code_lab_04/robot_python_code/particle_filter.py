@@ -264,6 +264,8 @@ class ParticleSet:
         else:
             self.generate_uniform_random_particles(xy_range)
         self.mean_state: State = State(0., 0., 0.)
+        self._use_clustering: bool = parameters.use_clustering
+        self._clustering_radius: float = parameters.clustering_radius
         self.update_mean_state()
         
     # Function to reset particles and random locations in the workspace.
@@ -300,6 +302,55 @@ class ParticleSet:
             new_list.append(self.particle_list[j - 1].deepcopy())
             target += step
         self.particle_list = new_list
+
+    def clustering(self) -> List[Particle]:
+        """Perform subtractive clustering on the particle set to find cluster centers, which can be used as multiple hypotheses for the robot's state"""
+        c1, potentials = self._clustering_potentials_calculation()
+        cluster_centers: List[Tuple[Particle, int]] = self._clustering_potential_reduction(c1, potentials)
+        return [center[0] for center in cluster_centers]
+
+
+    def _clustering_potentials_calculation(self) -> Tuple[Tuple[Particle, int], List[float]]:
+        """Calculate a "potential" for each particle based on how close it is to other particles, and return the particle with the highest potential along with the list of potentials. \n
+        This is Step 1 of Subtractive Clustering"""
+        particle_potentials: List[float] = []
+        for particle in self.particle_list:
+            p_pot: float = 0.0
+            for other_particle in self.particle_list:
+                if particle is other_particle:
+                    continue
+                distance = particle.state.distance_to(other_particle.state)
+                p_pot += math.exp( (-distance)**2 / (0.5*self._clustering_radius)**2)
+            particle_potentials.append(p_pot)
+        max_particle_index = particle_potentials.index(max(particle_potentials))
+        return (self.particle_list[max_particle_index], max_particle_index), particle_potentials
+    
+    def _clustering_potential_reduction(self, cluster_center: Tuple[Particle, int], particle_potentials: List[float]) -> List[Tuple[Particle, int]]:
+        """Reduce the potential of particles based on their distance to a cluster center. \n
+        This is Step 2 of Subtractive Clustering"""
+        n: int = len(self.particle_list)
+        is_covered: List[bool] = [False] * n
+        self._update_coverage(cluster_center[0], is_covered)
+        k: int = 1
+        cluster_centers: List[Tuple[Particle, int]] = [cluster_center]
+        while (sum(is_covered) / n) < 0.75:
+            for i, particle in enumerate(self.particle_list):
+                particle_potentials[i] = particle_potentials[i] - (particle_potentials[cluster_centers[k-1][1]] *
+                                                                    math.exp( (-particle.state.distance_to(cluster_centers[k-1][0].state))**2 / 
+                                                                             (0.5*self._clustering_radius)**2))
+            k += 1
+            max_particle_index = particle_potentials.index(max(particle_potentials))
+            cluster_centers.append((self.particle_list[max_particle_index], max_particle_index))
+            self._update_coverage(cluster_centers[-1][0], is_covered)
+
+        return cluster_centers
+
+    def _update_coverage(self, center_particle: Particle, covered_mask: List[bool]) -> None:
+        for i, particle in enumerate(self.particle_list):
+            if not covered_mask[i]:
+                dist = particle.state.distance_to(center_particle.state)
+                if dist <= self._clustering_radius:
+                    covered_mask[i] = True
 
     # Calculate the mean state.
     def update_mean_state(self):
@@ -372,56 +423,6 @@ class ParticleFilter:
             p.weight = math.exp(lw - max_log)
 
         self.particle_set.resample()
-
-    def clustering(self, cluster_radius: float) -> List[Particle]:
-        """Perform subtractive clustering on the particle set to find cluster centers, which can be used as multiple hypotheses for the robot's state"""
-        c1, potentials = self._clustering_potentials_calculation(self.particle_set, cluster_radius)
-        cluster_centers: List[Tuple[Particle, int]] = self._clustering_potential_reduction(self.particle_set, c1, potentials, cluster_radius)
-        return [center[0] for center in cluster_centers]
-
-
-    def _clustering_potentials_calculation(self, particle_set: ParticleSet, cluster_radius: float) -> Tuple[Tuple[Particle, int], List[float]]:
-        """Calculate a "potential" for each particle based on how close it is to other particles, and return the particle with the highest potential along with the list of potentials. \n
-        This is Step 1 of Subtractive Clustering"""
-        particle_potentials: List[float] = []
-        for particle in particle_set.particle_list:
-            p_pot: float = 0.0
-            for other_particle in particle_set.particle_list:
-                if particle is other_particle:
-                    continue
-                distance = particle.state.distance_to(other_particle.state)
-                p_pot += math.exp( (-distance)**2 / (0.5*cluster_radius)**2)
-            particle_potentials.append(p_pot)
-        max_particle_index = particle_potentials.index(max(particle_potentials))
-        return (particle_set.particle_list[max_particle_index], max_particle_index), particle_potentials
-    
-    def _clustering_potential_reduction(self, particle_set: ParticleSet, cluster_center: Tuple[Particle, int], particle_potentials: List[float], cluster_radius: float) -> List[Tuple[Particle, int]]:
-        """Reduce the potential of particles based on their distance to a cluster center. \n
-        This is Step 2 of Subtractive Clustering"""
-        n: int = len(particle_set.particle_list)
-        is_covered: List[bool] = [False] * n
-        self._update_coverage(particle_set.particle_list, cluster_center[0], is_covered, cluster_radius)
-        k: int = 1
-        cluster_centers: List[Tuple[Particle, int]] = [cluster_center]
-        while (sum(is_covered) / n) < 0.75:
-            for i, particle in enumerate(particle_set.particle_list):
-                particle_potentials[i] = particle_potentials[i] - (particle_potentials[cluster_centers[k-1][1]] *
-                                                                    math.exp( (-particle.state.distance_to(cluster_centers[k-1][0].state))**2 / 
-                                                                             (0.5*cluster_radius)**2))
-            k += 1
-            max_particle_index = particle_potentials.index(max(particle_potentials))
-            cluster_centers.append((particle_set.particle_list[max_particle_index], max_particle_index))
-            self._update_coverage(particle_set.particle_list, cluster_centers[-1][0], is_covered, cluster_radius)
-
-        return cluster_centers
-
-    @staticmethod    
-    def _update_coverage(particle_list: List[Particle], center_particle: Particle, covered_mask: List[bool], cluster_radius: float) -> None:
-        for i, particle in enumerate(particle_list):
-            if not covered_mask[i]:
-                dist = particle.state.distance_to(center_particle.state)
-                if dist <= cluster_radius:
-                    covered_mask[i] = True
 
     # Output to terminal the mean state.
     def print_state_estimate(self):
@@ -506,7 +507,6 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
         # Run the PF for a time step
         particle_filter.update(u_t, z_t, delta_t)
-        print(f"Time: {row[0]:.2f} s, Control: (encoder_counts={u_t.encoder_total_count}, steering={u_t.cmd_steering_angle}), z_t: {z_t.distances}")
         particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
 
     particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
