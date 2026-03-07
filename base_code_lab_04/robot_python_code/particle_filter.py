@@ -7,7 +7,7 @@ import numpy as np
 import random
 
 # Local libraries
-from robot_python_code import RobotControlSignal, RobotSensorSignal
+from robot_python_code import RobotOdomSignal, RobotSensorSignal
 import parameters
 import data_handling
 
@@ -339,7 +339,7 @@ class ParticleFilter:
         self.last_encoder_counts: int = encoder_counts_0
 
     # Update the states given new measurements
-    def update(self, odometery_signal: RobotControlSignal, measurement_signal: RobotSensorSignal, delta_t: float):
+    def update(self, odometery_signal: RobotOdomSignal, measurement_signal: RobotSensorSignal, delta_t: float):
         self.prediction(odometery_signal, delta_t)
         if len(measurement_signal.angles) > 0:
             self.correction(measurement_signal)
@@ -347,11 +347,11 @@ class ParticleFilter:
         self.state_estimate_list.append(self.state_estimate.deepcopy())
 
     # Predict the current state from the last state.
-    def prediction(self, odometry_signal: RobotControlSignal, delta_t: float):
+    def prediction(self, odometry_signal: RobotOdomSignal, delta_t: float):
         # odometry_signal.cmd_speed carries the cumulative encoder count;
         # cmd_steering_angle carries the current steering angle (degrees).
-        delta_encoder_counts: int = odometry_signal.cmd_speed - self.last_encoder_counts
-        self.last_encoder_counts: int = odometry_signal.cmd_speed
+        delta_encoder_counts: int = odometry_signal.encoder_total_count - self.last_encoder_counts
+        self.last_encoder_counts: int = odometry_signal.encoder_total_count
         steering: float = odometry_signal.cmd_steering_angle
 
         for particle in self.particle_set.particle_list:
@@ -450,7 +450,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
     for t in range(1, len(pf_data)):
         row = pf_data[t]
         delta_t: float = pf_data[t][0] - pf_data[t-1][0] # time step size
-        u_t: RobotControlSignal = RobotControlSignal(row[1][0], row[1][1]) # robot_sensor_signal
+        u_t: RobotOdomSignal = RobotOdomSignal(row[1][0], row[1][1]) # robot_sensor_signal
         z_t: RobotSensorSignal = row[2] # lidar_sensor_signal
 
         # Run the PF for a time step

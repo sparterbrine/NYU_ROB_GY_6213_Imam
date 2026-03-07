@@ -351,11 +351,11 @@ class RobotSensorSignal:
         """Converts distance from millimeters to meters."""
         return distance / 1000 # mm to m
 
-class RobotControlSignal:
+class RobotOdomSignal:
 
     # Constructor
-    def __init__(self, cmd_speed: int, cmd_steering_angle: int):
-        self.cmd_speed: int = cmd_speed
-        '''cmd_speed carries the cumulative encoder count, so the particle filter can do prediction based on change in encoder counts.'''
+    def __init__(self, encoder_total_count: int, cmd_steering_angle: int):
+        self.encoder_total_count: int = encoder_total_count
+        '''encoder_total_count carries the cumulative encoder count, so the particle filter can do prediction based on change in encoder counts.'''
         self.cmd_steering_angle: int = cmd_steering_angle
         '''cmd_steering_angle carries the current steering angle (degrees).'''

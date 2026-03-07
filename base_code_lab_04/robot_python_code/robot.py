@@ -15,7 +15,7 @@ from time import strftime
 from particle_filter import State
 import parameters
 import particle_filter
-from robot_python_code import RobotControlSignal, RobotSensorSignal, MsgSender, MsgReceiver, CameraSensor, DataLogger
+from robot_python_code import RobotOdomSignal, RobotSensorSignal, MsgSender, MsgReceiver, CameraSensor, DataLogger
 
 # The core robot class
 class Robot:
@@ -47,7 +47,7 @@ class Robot:
         print("Eliminate UDP !!!")
 
     def update_state_estimate(self):
-        u_t: RobotControlSignal = RobotControlSignal(self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering) # robot_sensor_signal
+        u_t: RobotOdomSignal = RobotOdomSignal(self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering) # robot_sensor_signal
         z_t: RobotSensorSignal = self.robot_sensor_signal
         delta_t: float = 0.1
         self.particle_filter.update(u_t, z_t, delta_t)
