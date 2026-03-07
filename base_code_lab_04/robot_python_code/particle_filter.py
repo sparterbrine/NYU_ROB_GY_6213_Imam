@@ -468,8 +468,9 @@ class ParticleFilterPlot:
 
 
         # Plot state estimate
-        plt.plot(state_mean.x, state_mean.y,'ro')
-        plt.plot([state_mean.x, state_mean.x+ self.dir_length*math.cos(state_mean.theta) ], [state_mean.y, state_mean.y+ self.dir_length*math.sin(state_mean.theta) ],'r')
+        plt.quiver(state_mean.x, state_mean.y,
+                   math.cos(state_mean.theta), math.sin(state_mean.theta),
+                   color='b', scale=1/self.dir_length)
         x_particles, y_particles = self.to_plot_data(particle_set)
         plt.plot(x_particles, y_particles, 'g.')
         plt.xlabel('X(m)')
