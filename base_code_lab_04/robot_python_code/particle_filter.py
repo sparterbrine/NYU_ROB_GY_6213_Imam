@@ -356,16 +356,26 @@ class ParticleSet:
     def update_mean_state(self):
         # x and y: weighted mean (weights need not be normalised).
         # theta: circular mean using unit-vector averaging to handle wrap-around.
-        total_weight = sum(p.weight for p in self.particle_list)
+        if self._use_clustering:
+            cluster_centers: List[Particle] = self.clustering()
+            particles_used = []
+            for p in self.particle_list:
+                if p.state.distance_to(cluster_centers[0].state) < self._clustering_radius:
+                    particles_used.append(p)
+        else:
+            particles_used = self.particle_list
+
+        # breakpoint()
+        total_weight = sum(p.weight for p in particles_used)
         if total_weight == 0:
             return
 
-        mean_x = sum(p.state.x * p.weight for p in self.particle_list) / total_weight
-        mean_y = sum(p.state.y * p.weight for p in self.particle_list) / total_weight
+        mean_x = sum(p.state.x * p.weight for p in particles_used) / total_weight
+        mean_y = sum(p.state.y * p.weight for p in particles_used) / total_weight
 
         # Circular mean for theta
-        sin_sum = sum(math.sin(p.state.theta) * p.weight for p in self.particle_list)
-        cos_sum = sum(math.cos(p.state.theta) * p.weight for p in self.particle_list)
+        sin_sum = sum(math.sin(p.state.theta) * p.weight for p in particles_used)
+        cos_sum = sum(math.cos(p.state.theta) * p.weight for p in particles_used)
         mean_theta = math.atan2(sin_sum, cos_sum)
 
         self.mean_state.x     = mean_x
