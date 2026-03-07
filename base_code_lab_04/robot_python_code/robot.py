@@ -15,7 +15,7 @@ from time import strftime
 from particle_filter import State
 import parameters
 import particle_filter
-import robot_python_code
+from robot_python_code import RobotControlSignal, RobotSensorSignal, MsgSender, MsgReceiver, CameraSensor, DataLogger
 
 # The core robot class
 class Robot:
@@ -25,19 +25,19 @@ class Robot:
         self.running_trial = False
         self.extra_logging = False
         self.trial_start_time = 0
-        self.msg_sender = None
-        self.msg_receiver = None
-        self.camera_sensor = robot_python_code.CameraSensor(parameters.camera_id, video_capture)
-        self.data_logger = robot_python_code.DataLogger(parameters.filename_start, parameters.data_name_list)
-        self.robot_sensor_signal = robot_python_code.RobotSensorSignal([0, 0, 0])
+        self.msg_sender: MsgSender = None
+        self.msg_receiver: MsgReceiver = None
+        self.camera_sensor: CameraSensor = CameraSensor(parameters.camera_id, video_capture)
+        self.data_logger: DataLogger = DataLogger(parameters.filename_start, parameters.data_name_list)
+        self.robot_sensor_signal: RobotSensorSignal = RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
         map = particle_filter.Map(parameters.wall_corner_list, parameters.grid_dimensions)
         self.particle_filter = particle_filter.ParticleFilter(parameters.num_particles, map, particle_filter.State(0,0,0), particle_filter.State(1,1,1), True, 0)
         
     # Create udp senders and receiver instances with the udp communication
     def setup_udp_connection(self, udp_communication):
-        self.msg_sender = robot_python_code.MsgSender(time.perf_counter(), parameters.num_robot_control_signals, udp_communication)
-        self.msg_receiver = robot_python_code.MsgReceiver(time.perf_counter(), parameters.num_robot_sensors, udp_communication)
+        self.msg_sender = MsgSender(time.perf_counter(), parameters.num_robot_control_signals, udp_communication)
+        self.msg_receiver = MsgReceiver(time.perf_counter(), parameters.num_robot_sensors, udp_communication)
         print("Reset msg_senders and receivers!")
 
     # Stop udp senders and receiver instances with the udp communication
@@ -47,9 +47,8 @@ class Robot:
         print("Eliminate UDP !!!")
 
     def update_state_estimate(self):
-        u_t = np.array([self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering]) # robot_sensor_signal
-        '''Encoder counts, Steering Angle'''
-        z_t = self.robot_sensor_signal
+        u_t: RobotControlSignal = RobotControlSignal(self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering) # robot_sensor_signal
+        z_t: RobotSensorSignal = self.robot_sensor_signal
         delta_t: float = 0.1
         self.particle_filter.update(u_t, z_t, delta_t)
 

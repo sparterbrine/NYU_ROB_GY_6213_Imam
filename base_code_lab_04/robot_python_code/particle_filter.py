@@ -188,10 +188,10 @@ class Particle:
         self.weight = 1.
 
     # Function to create a new random particle state with a normal distribution
-    def randomize_around_initial_state(self, initial_state: State, state_stdev):
-        x     = random.gauss(initial_state.x,     state_stdev.x)
-        y     = random.gauss(initial_state.y,     state_stdev.y)
-        theta = angle_wrap(random.gauss(initial_state.theta, state_stdev.theta))
+    def randomize_around_initial_state(self, initial_state: State, state_stdev: State):
+        x: float     = random.gauss(initial_state.x,     state_stdev.x)
+        y: float     = random.gauss(initial_state.y,     state_stdev.y)
+        theta: float = angle_wrap(random.gauss(initial_state.theta, state_stdev.theta))
         self.state = State(x, y, theta)
         self.weight = 1.
 
@@ -221,22 +221,23 @@ class Particle:
         self.state = State(x, y, theta)
 
     # Function to determine a particles weight based how well the lidar measurement matches up with the map.
-    def calculate_weight(self, lidar_signal, map: Map):
-        # Accumulate log-likelihood over all rays to avoid floating-point underflow.
-        # The final linear weight is set by correction() after normalising across all particles.
+    def calculate_weight(self, lidar_signal: RobotSensorSignal, map: Map):
+        """Accumulate log-likelihood over all rays to avoid floating-point underflow\n
+        Returns a log weight based on the likelihood of the lidar measurement given the particle's state and the map.\n
+        Returns a negative value, to be normalised later in correction() across all particles. The more negative, the less likely the particle's state is given the measurement."""
         log_weight = 0.0
         for i in range(lidar_signal.num_lidar_rays):
-            angle_rad  = lidar_signal.convert_hardware_angle(lidar_signal.angles[i])
-            distance_m = lidar_signal.convert_hardware_distance(lidar_signal.distances[i])
+            angle_rad: float  = RobotSensorSignal.convert_hardware_angle(lidar_signal.angles[i])
+            distance_m: float = RobotSensorSignal.convert_hardware_distance(lidar_signal.distances[i])
 
             # Build a state pointing in the direction of this lidar ray
-            ray_theta = angle_wrap(self.state.theta + angle_rad)
-            ray_state = State(self.state.x, self.state.y, ray_theta)
+            ray_theta: float = angle_wrap(self.state.theta + angle_rad)
+            ray_state: State = State(self.state.x, self.state.y, ray_theta)
 
             expected_distance = map.closest_distance_to_walls(ray_state)
             log_weight -= (expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance)
 
-        self.weight = log_weight  # stored as log; correction() converts to linear
+        self.weight = log_weight  # stored as log; correction() converts to linear. Hence it's fine as a negative number and doesn't need to be normalised here.
         
     # Return the normal distribution function output.
     def gaussian(self, expected_distance: float, distance: float) -> float:
@@ -349,12 +350,12 @@ class ParticleFilter:
     def prediction(self, odometry_signal: RobotControlSignal, delta_t: float):
         # odometry_signal.cmd_speed carries the cumulative encoder count;
         # cmd_steering_angle carries the current steering angle (degrees).
-        delta_encoder_counts = odometry_signal.cmd_speed - self.last_encoder_counts
-        self.last_encoder_counts = odometry_signal.cmd_speed
-        steering = odometry_signal.cmd_steering_angle
+        delta_encoder_counts: int = odometry_signal.cmd_speed - self.last_encoder_counts
+        self.last_encoder_counts: int = odometry_signal.cmd_speed
+        steering: float = odometry_signal.cmd_steering_angle
 
         for particle in self.particle_set.particle_list:
-            last_state = particle.state.deepcopy()
+            last_state: State = particle.state.deepcopy()
             particle.propagate_state(last_state, delta_encoder_counts, steering, delta_t)
 
     # Correct the predicted states.

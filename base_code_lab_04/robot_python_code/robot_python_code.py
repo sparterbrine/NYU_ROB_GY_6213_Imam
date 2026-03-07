@@ -310,7 +310,9 @@ class RobotSensorSignal:
         self.steering: int = int(unpacked_msg[1])
         self.num_lidar_rays: int = int(unpacked_msg[2])
         self.angles: List[float] = []
+        '''Angles in degrees'''
         self.distances: List[float] = []
+        '''Distances in mm'''
         for i in range(self.num_lidar_rays):
             index = 3 + i*2
             self.angles.append(unpacked_msg[index])
@@ -338,11 +340,15 @@ class RobotSensorSignal:
         return sensor_data_list
     
     # Put lidar angles in the correct units and correct direction.
-    def convert_hardware_angle(self, angle: float) -> float:
+    @staticmethod
+    def convert_hardware_angle(angle: float) -> float:
+        """Returns the angle in radians, with the correct sign for the direction of rotation(so *-1)."""
         return -angle * math.pi / 180 # degrees to rad
     
     # Put lidar distances in the correct units.
-    def convert_hardware_distance(self, distance: float) -> float:
+    @staticmethod
+    def convert_hardware_distance(distance: float) -> float:
+        """Converts distance from millimeters to meters."""
         return distance / 1000 # mm to m
 
 class RobotControlSignal:
@@ -350,4 +356,6 @@ class RobotControlSignal:
     # Constructor
     def __init__(self, cmd_speed: int, cmd_steering_angle: int):
         self.cmd_speed: int = cmd_speed
+        '''cmd_speed carries the cumulative encoder count, so the particle filter can do prediction based on change in encoder counts.'''
         self.cmd_steering_angle: int = cmd_steering_angle
+        '''cmd_steering_angle carries the current steering angle (degrees).'''

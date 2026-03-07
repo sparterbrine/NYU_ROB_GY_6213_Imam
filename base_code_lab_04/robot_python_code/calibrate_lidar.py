@@ -17,6 +17,8 @@ import sys
 
 import numpy as np
 
+from robot_python_code import RobotSensorSignal
+
 # ---------------------------------------------------------------------------
 # CONFIG — edit these to match your calibration files
 # ---------------------------------------------------------------------------
@@ -65,6 +67,7 @@ def process_entry(entry: dict) -> dict:
 
     readings = []
     for sig in data["robot_sensor_signal"]:
+        sig: RobotSensorSignal
         for angle_raw, dist_mm in zip(sig.angles, sig.distances):
             dist_m = dist_mm / 1000.0
             if angle_diff(angle_raw, target_angle) <= angle_window:
