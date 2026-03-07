@@ -1,6 +1,6 @@
 # External libraries
 import copy
-from typing import List, Tuple
+from typing import List
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -455,6 +455,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
         # Run the PF for a time step
         particle_filter.update(u_t, z_t, delta_t)
+        print(f"Time: {row[0]:.2f} s, Control: (encoder_counts={u_t.encoder_total_count}, steering={u_t.cmd_steering_angle}), z_t: {z_t.distances}")
         particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
 
     particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)

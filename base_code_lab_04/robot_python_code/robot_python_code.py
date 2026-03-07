@@ -5,16 +5,12 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 if TYPE_CHECKING:
     from particle_filter import State, ParticleSet
 
-import serial
 import time
 import pickle
 import cv2
-import cv2.aruco as aruco
 import math
-import numpy as np
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import socket
 from time import strftime
 import os

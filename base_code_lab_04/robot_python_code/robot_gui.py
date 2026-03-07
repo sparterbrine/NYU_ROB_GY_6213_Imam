@@ -1,10 +1,8 @@
 # External libraries
-import asyncio
 import cv2
 import math
 from matplotlib import pyplot as plt
 from matplotlib.patches import Ellipse
-import matplotlib
 from nicegui import ui, app, run
 import numpy as np
 import time

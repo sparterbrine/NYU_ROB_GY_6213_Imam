@@ -1,20 +1,11 @@
 # External libraries
 from typing import List
 
-import serial
 import time
-import pickle
-import cv2
-import cv2.aruco as aruco
-import numpy as np
-import matplotlib.pyplot as plt
-import socket
-from time import strftime
 
 # Local libraries
-from particle_filter import State
+from particle_filter import State, Map, ParticleFilter
 import parameters
-import particle_filter
 from robot_python_code import RobotOdomSignal, RobotSensorSignal, MsgSender, MsgReceiver, CameraSensor, DataLogger
 
 # The core robot class
@@ -31,8 +22,8 @@ class Robot:
         self.data_logger: DataLogger = DataLogger(parameters.filename_start, parameters.data_name_list)
         self.robot_sensor_signal: RobotSensorSignal = RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
-        map = particle_filter.Map(parameters.wall_corner_list, parameters.grid_dimensions)
-        self.particle_filter = particle_filter.ParticleFilter(parameters.num_particles, map, particle_filter.State(0,0,0), particle_filter.State(1,1,1), True, 0)
+        map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
+        self.particle_filter = ParticleFilter(parameters.num_particles, map, State(0,0,0), State(1,1,1), True, 0)
         
     # Create udp senders and receiver instances with the udp communication
     def setup_udp_connection(self, udp_communication):

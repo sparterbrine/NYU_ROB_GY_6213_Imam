@@ -7,7 +7,6 @@ import math
 import numpy as np
 
 # Internal Libraries
-import parameters
 import robot_python_code
 import motion_models
 
