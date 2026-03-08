@@ -227,6 +227,7 @@ class Particle:
         Returns a log weight based on the likelihood of the lidar measurement given the particle's state and the map.\n
         Returns a negative value, to be normalised later in correction() across all particles. The more negative, the less likely the particle's state is given the measurement."""
         log_weight = 0.0
+        log_weight_list = []
         for i in range(lidar_signal.num_lidar_rays):
             angle_rad: float  = RobotSensorSignal.convert_hardware_angle(lidar_signal.angles[i])
             distance_m: float = RobotSensorSignal.convert_hardware_distance(lidar_signal.distances[i])
@@ -236,9 +237,10 @@ class Particle:
             ray_state: State = State(self.state.x, self.state.y, ray_theta)
 
             expected_distance = map.closest_distance_to_walls(ray_state)
-            log_weight -= (expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance)
+            log_weight = (expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance)
+            log_weight_list.append(log_weight)
 
-        self.weight = log_weight  # stored as log; correction() converts to linear. Hence it's fine as a negative number and doesn't need to be normalised here.
+        self.weight = float(np.mean(log_weight_list))  # stored as log; correction() converts to linear. Hence it's fine as a negative number and doesn't need to be normalised here.
         
     # Return the normal distribution function output.
     def gaussian(self, expected_distance: float, distance: float) -> float:
@@ -256,7 +258,7 @@ class Particle:
 class ParticleSet:
     
     # Constructor, which calls the known start or unknown start initialization.
-    def __init__(self, num_particles: int, xy_range: XY_range, initial_state: State, state_stdev, known_start_state: bool):
+    def __init__(self, num_particles: int, xy_range: XY_range, initial_state: State, state_stdev: State, known_start_state: bool):
         self.num_particles: int = num_particles
         self.particle_list: List[Particle] = []
         if known_start_state:
@@ -276,7 +278,7 @@ class ParticleSet:
             self.particle_list.append(random_particle)
 
     # Function to reset particles, normally distributed around the initial state. 
-    def generate_initial_state_particles(self, initial_state: State, state_stdev):
+    def generate_initial_state_particles(self, initial_state: State, state_stdev: State):
         for i in range(self.num_particles):
             random_particle: Particle = Particle()
             random_particle.randomize_around_initial_state(initial_state, state_stdev)
@@ -308,7 +310,6 @@ class ParticleSet:
         c1, potentials = self._clustering_potentials_calculation()
         cluster_centers: List[Tuple[Particle, int]] = self._clustering_potential_reduction(c1, potentials)
         return [center[0] for center in cluster_centers]
-
 
     def _clustering_potentials_calculation(self) -> Tuple[Tuple[Particle, int], List[float]]:
         """Calculate a "potential" for each particle based on how close it is to other particles, and return the particle with the highest potential along with the list of potentials. \n
@@ -392,7 +393,7 @@ class ParticleSet:
 class ParticleFilter:
     
     # Constructor
-    def __init__(self, num_particles: int, map: Map, initial_state: State, state_stdev, known_start_state: bool, encoder_counts_0: int):
+    def __init__(self, num_particles: int, map: Map, initial_state: State, state_stdev: State, known_start_state: bool, encoder_counts_0: int):
         self.map: Map = map
         self.particle_set: ParticleSet = ParticleSet(num_particles, map.particle_range, initial_state, state_stdev, known_start_state)
         self.state_estimate: State = self.particle_set.mean_state

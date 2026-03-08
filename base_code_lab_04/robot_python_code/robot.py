@@ -57,7 +57,7 @@ class Robot:
 
         # Update control signals
         control_signal: List[int] = [cmd_speed, cmd_steering_angle]
-                
+        
         # Send msg
         if self.msg_receiver != None:
             self.msg_sender.send_control_signal(control_signal)
