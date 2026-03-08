@@ -451,6 +451,9 @@ class ParticleFilterPlot:
         self.fig = fig
         self.map: Map = map
 
+        self.predicted_states: List[State] = []
+        self.means_states: List[State] = []
+
     # Clear and update the plot with new PF data
     def update(self, state_mean: State, particle_set: ParticleSet, lidar_signal: RobotSensorSignal, hold_show_plot: bool):
         plt.clf()
@@ -508,6 +511,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
     # Create plotting tool for particles
     particle_filter_plot: ParticleFilterPlot = ParticleFilterPlot(map)
+    temp_particle = Particle()
 
     # Loop over pf data
     for t in range(1, len(pf_data)):
@@ -521,9 +525,48 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
             print(f"Control: {u_t.encoder_total_count} counts, {u_t.cmd_steering_angle} degrees | Measurement: {z_t.distances} distances")
         # Run the PF for a time step
         particle_filter.update(u_t, z_t, delta_t)
+        if t == 1:
+            temp_particle.state = particle_filter.particle_set.mean_state.deepcopy()
+        else:
+            temp_particle.propagate_state(temp_particle.state, u_t.encoder_total_count, u_t.cmd_steering_angle, delta_t)
+        particle_filter_plot.means_states.append(particle_filter.particle_set.mean_state.deepcopy())
+        # Propagate the mean state using a temporary Particle and append the result
+        particle_filter_plot.predicted_states.append(temp_particle.state.deepcopy())
         particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
 
-    particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
+    # particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
+
+    # --- Custom summary plot: mean states (green), predicted states (blue), walls (black), grid limits ---
+    plt.figure()
+    # Plot walls
+    for wall in map.wall_list:
+        plt.plot([wall.corner1.x, wall.corner2.x], [wall.corner1.y, wall.corner2.y], 'k-', linewidth=2, label='Wall' if wall == map.wall_list[0] else "")
+
+    # Plot grid map limits as a rectangle
+    x_min, x_max = parameters.grid_dimensions[0]
+    y_min, y_max = parameters.grid_dimensions[1]
+    plt.plot([x_min, x_max, x_max, x_min, x_min], [y_min, y_min, y_max, y_max, y_min], 'k--', label='Map limits')
+
+    # Plot mean states (green)
+    if particle_filter_plot.means_states:
+        mean_x = [s.x for s in particle_filter_plot.means_states]
+        mean_y = [s.y for s in particle_filter_plot.means_states]
+        plt.plot(mean_x, mean_y, 'go-', label='Mean states')
+
+    # Plot predicted states (blue)
+    if particle_filter_plot.predicted_states:
+        pred_x = [s.x for s in particle_filter_plot.predicted_states]
+        pred_y = [s.y for s in particle_filter_plot.predicted_states]
+        plt.plot(pred_x, pred_y, 'bo-', label='Predicted states')
+
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.title('Particle Filter Trajectory and Predictions')
+    plt.axis([x_min-0.5, x_max+0.5, y_min-0.5, y_max+0.5])
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    
 
         
 
