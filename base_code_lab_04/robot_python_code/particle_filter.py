@@ -16,9 +16,9 @@ XY_range = List[float] # [x_min, x_max, y_min, y_max]
 
 # Helper function to make sure all angles are between -pi and pi
 def angle_wrap(angle: float) -> float:
-    while angle > math.pi:
+    if angle > math.pi:
         angle -= 2*math.pi
-    while angle < -math.pi:
+    elif angle < -math.pi:
         angle += 2*math.pi
     return angle
 
@@ -454,7 +454,7 @@ class ParticleFilterPlot:
     # Clear and update the plot with new PF data
     def update(self, state_mean: State, particle_set: ParticleSet, lidar_signal: RobotSensorSignal, hold_show_plot: bool):
         plt.clf()
-        
+
         # Plot walls
         for wall in self.map.wall_list:
             plt.plot([wall.corner1.x, wall.corner2.x],[wall.corner1.y, wall.corner2.y],'k')
@@ -466,7 +466,6 @@ class ParticleFilterPlot:
             x_ray = [state_mean.x, state_mean.x + distance * math.cos(angle)]
             y_ray = [state_mean.y, state_mean.y + distance * math.sin(angle)]
             plt.plot(x_ray, y_ray, 'r')
-
 
         # Plot state estimate
         plt.quiver(state_mean.x, state_mean.y,
