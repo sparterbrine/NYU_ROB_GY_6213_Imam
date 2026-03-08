@@ -517,6 +517,9 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
         u_t: RobotOdomSignal = RobotOdomSignal(row[1][0], row[1][1]) # robot_sensor_signal
         z_t: RobotSensorSignal = row[2] # lidar_sensor_signal
 
+        u_t.encoder_total_count = z_t.encoder_counts
+        if __name__ == '__main__':
+            print(f"Control: {u_t.encoder_total_count} counts, {u_t.cmd_steering_angle} degrees | Measurement: {z_t.distances} distances")
         # Run the PF for a time step
         particle_filter.update(u_t, z_t, delta_t)
         particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
