@@ -23,7 +23,10 @@ class Robot:
         self.robot_sensor_signal: RobotSensorSignal = RobotSensorSignal([0, 0, 0])
         self.camera_sensor_signal: List[float] = [0., 0., 0., 0., 0., 0.]
         map = Map(parameters.wall_corner_list, parameters.grid_dimensions)
-        self.particle_filter = ParticleFilter(parameters.num_particles, map, State(0,0,0), State(1,1,1), True, 0)
+        self.particle_filter = ParticleFilter(parameters.num_particles, map,
+                                              State(parameters.initial_state_x, parameters.initial_state_y, parameters.initial_state_theta),
+                                              State(parameters.initial_state_stdev_x, parameters.initial_state_stdev_y, parameters.initial_state_stdev_theta),
+                                              True, 0)
         
     # Create udp senders and receiver instances with the udp communication
     def setup_udp_connection(self, udp_communication):
@@ -46,21 +49,29 @@ class Robot:
     def control_loop(self, cmd_speed = 0, cmd_steering_angle = 0, logging_switch_on = False):
         # Get camera signal
         #self.camera_sensor_signal = self.camera_sensor.get_signal(self.camera_sensor_signal)
-        
+
+        # Grab a raw camera frame for logging (no pose estimation overhead)
+        frame = None
+        if logging_switch_on and self.camera_sensor.cap is not None and self.camera_sensor.cap.isOpened():
+            ret, frame = self.camera_sensor.cap.read()
+            if not ret:
+                frame = None
+
         # Receive msg
         if self.msg_sender != None:
             self.robot_sensor_signal = self.msg_receiver.receive_robot_sensor_signal(self.robot_sensor_signal)
-        
+
         # Update the state estimates
-        self.update_state_estimate()
+        # Should be enabled for online localization @Luca
+        # self.update_state_estimate()
 
         # Update control signals
         control_signal: List[int] = [cmd_speed, cmd_steering_angle]
-        
+
         # Send msg
         if self.msg_receiver != None:
             self.msg_sender.send_control_signal(control_signal)
-            
+
         # Log the data
-        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.particle_filter.particle_set.mean_state, self.particle_filter.particle_set)
+        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.particle_filter.particle_set.mean_state, self.particle_filter.particle_set, frame)
 

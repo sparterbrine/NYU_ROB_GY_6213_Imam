@@ -201,8 +201,8 @@ class Particle:
     # Function to take a particle and "randomly" propagate it forward according to a motion model.
     def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int):
         predicted_next_state = motion_models.state_prediction(last_state, [delta_encoder_counts, steering], delta_encoder_counts)
-        predicted_next_state.x += random.gauss(0, parameters.distance_variance)
-        predicted_next_state.y += random.gauss(0, parameters.distance_variance)
+        predicted_next_state.x += random.gauss(0, parameters.motion_distance_variance)
+        predicted_next_state.y += random.gauss(0, parameters.motion_distance_variance)
         predicted_next_state.theta += random.gauss(0, parameters.theta_variance)
         # KAMIL and LUCA, the gaussian noise needs to be added back
         self.state = predicted_next_state
@@ -227,7 +227,7 @@ class Particle:
             ray_state: State = State(self.state.x, self.state.y, ray_theta)
 
             expected_distance = map.closest_distance_to_walls(ray_state)
-            log_weight_list.append((expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance))
+            log_weight_list.append(-((expected_distance - distance_m) ** 2 / (2 * parameters.distance_variance)))
 
         if not log_weight_list:
             self.weight = 0.0
@@ -298,20 +298,16 @@ class ParticleSet:
         self.particle_list = new_list
 
     def resample_type2(self, measurement_signal: RobotSensorSignal, last_encoder_counts: int):
-        # delta = measurement_signal.encoder_counts - last_encoder_counts
-        # if delta == 0:
-        #     print("Error, delta is 0")
-        #     return
-        P_star = []
-        for i in range(len(self.particle_list)):
-            q = np.round(self.particle_list[i].weight)
-            for j in range(int(q)):
-                P_star.append(self.particle_list[i].deepcopy())
-        P_t = []
-        for i in range(len(self.particle_list)):
-            rand_index = random.randint(0, len(P_star) - 1)
-            P_t.append(P_star[rand_index])
-        self.particle_list = P_t
+        # Multinomial resampling: draw N particles with replacement
+        # proportional to normalised weights.
+        weights = [p.weight for p in self.particle_list]
+        total = sum(weights)
+        if total == 0:
+            return
+        normalised = [w / total for w in weights]
+        N = self.num_particles
+        chosen = random.choices(self.particle_list, weights=normalised, k=N)
+        self.particle_list = [p.deepcopy() for p in chosen]
 
     def resample(self, measurement_signal: RobotSensorSignal, last_encoder_counts: int):
         self.resample_type2(measurement_signal, last_encoder_counts)
@@ -417,8 +413,8 @@ class ParticleFilter:
         self.prediction(odometery_signal)
         if len(measurement_signal.angles) > 0:
             self.correction(measurement_signal)
-        else:
-            print("No movement, did not run correction step.")
+        # else:
+        #     print("No movement, did not run correction step.")
         self.particle_set.update_mean_state()
         self.state_estimate_list.append(self.state_estimate.deepcopy())
 
