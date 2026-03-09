@@ -40,8 +40,7 @@ class Robot:
     def update_state_estimate(self):
         u_t: RobotOdomSignal = RobotOdomSignal(self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering) # robot_sensor_signal
         z_t: RobotSensorSignal = self.robot_sensor_signal
-        delta_t: float = 0.1
-        self.particle_filter.update(u_t, z_t, delta_t)
+        self.particle_filter.update(u_t, z_t)
 
     # One iteration of the control loop to be called repeatedly
     def control_loop(self, cmd_speed = 0, cmd_steering_angle = 0, logging_switch_on = False):

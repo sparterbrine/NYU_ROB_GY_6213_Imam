@@ -68,10 +68,12 @@ covariance_plot_scale = 100
 # PF parameters, modify the map and num particles as you see fit.
 num_particles = 500
 distance_variance = 0.05
+theta_variance = 0.005
 grid_dimensions = [[0., 4.], [-2., 2.]] # [x_min, x_max], [y_min, y_max]
 _d = (0.15*np.sqrt(2)/2)
 clustering_radius = 2.
 use_clustering: bool = False
+lidar_max_range_m: float = 5  # meters; rays at or beyond this distance are ignored (open-space returns)
 
 wall_corner_list = [
     #box 1

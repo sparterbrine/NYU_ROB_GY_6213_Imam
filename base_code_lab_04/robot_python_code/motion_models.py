@@ -2,6 +2,7 @@ import math
 import random
 from typing import List, Tuple
 import numpy as np
+import copy
 
 # --- Motion Model Constants ---
 K_ENC: float = 0.000302        # meters per tick
@@ -58,6 +59,9 @@ class State:
             return self.theta
         else:
             raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
+        
+    def deepcopy(self) -> "Particle":
+        return copy.deepcopy(self)
 
     def __setitem__(self, idx, value):
         if idx == 0:
