@@ -62,8 +62,7 @@ class Robot:
             self.robot_sensor_signal = self.msg_receiver.receive_robot_sensor_signal(self.robot_sensor_signal)
 
         # Update the state estimates
-        # Should be enabled for online localization @Luca
-        # self.update_state_estimate()
+        self.update_state_estimate()
 
         # Update control signals
         control_signal: List[int] = [cmd_speed, cmd_steering_angle]

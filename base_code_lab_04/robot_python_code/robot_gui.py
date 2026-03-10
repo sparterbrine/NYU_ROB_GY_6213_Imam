@@ -312,9 +312,9 @@ def main():
         #update_lidar_data()
         #show_lidar_plot()
         # show_localization_plot()
-        update_video(video_image)
+        # update_video(video_image)
         update_lidar_data()
-        show_lidar_plot()
+        # show_lidar_plot()
         #show_localization_plot()
         #update_video(video_image)
         

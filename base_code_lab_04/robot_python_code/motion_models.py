@@ -7,7 +7,7 @@ import copy
 # --- Motion Model Constants ---
 K_ENC: float = 0.000302        # meters per tick
 '''Meters per Encoder Tick'''
-L: float = 0.140               # <--- NEW: Wheelbase = 140mm (0.14m)
+L: float = 0.140             
 '''Wheelbase in meters'''
 
 # Uncertainty Constants (Keep these for simulation/Part 7)
@@ -30,7 +30,7 @@ def rotational_velocity_w(steering_angle_command: float) -> float:
     intercept: float= 0.66
     
     w: float = (slope * steering_angle_command) + intercept
-    w = w*(-1)
+    w = w*(-1) / 5
     return w
 
 class State:
@@ -60,7 +60,7 @@ class State:
         else:
             raise IndexError("State only supports indices 0, 1, 2 for x, y, theta.")
         
-    def deepcopy(self) -> "Particle":
+    def deepcopy(self) -> "State":
         return copy.deepcopy(self)
 
     def __setitem__(self, idx, value):
@@ -80,15 +80,16 @@ class State:
     def __add__(self, other: "State") -> "State":
         return State(self.x + other.x, self.y + other.y, self.theta + other.theta)
 
-def state_prediction(state: State, control_vector, delta_enc: int) -> State:
+def state_prediction(state: State, control_vector, delta_enc: int, delta_t: float) -> State:
     steering_angle_command = control_vector[1]
-    
+
     # 1. Calculate Distance (ds)
     ds = distance_travelled_s(delta_enc)
-    
+    # print(f"ds: {ds:.4f} m from Δencoder: {delta_enc} ticks")
+
     # 2. Calculate Steering Angle (alpha)
-    # Assuming the slider (-20 to 20) represents degrees of steering
-    alpha = steering_angle_command * (math.pi / 180.0)
+    alpha = rotational_velocity_w(steering_angle_command) * delta_t * np.pi/180.0 * 5.0# convert to radians
+    # print(f"ds: {ds:.4f} m, alpha: {alpha:.4f} rad, steering_command: {steering_angle_command}°")
 
     # 4. Propagate State using KINEMATIC BICYCLE MODEL
     # Formula: change_in_theta = (distance / wheelbase) * tan(steering_angle)
@@ -100,8 +101,9 @@ def state_prediction(state: State, control_vector, delta_enc: int) -> State:
         theta_new = state.theta
     else:
         # Turning
-        d_theta = (ds / L) * math.tan(alpha)
-        
+        # d_theta = -(ds / L) * math.tan(alpha)
+        d_theta = -alpha
+        # print("d_theta:", d_theta)
         # Use Half-Angle formula for better accuracy (Runge-Kutta 2nd Order)
         theta_mid = state.theta + (d_theta / 2.0)
         
@@ -123,7 +125,7 @@ class MyMotionModel:
     def step_update(self, encoder_counts: int, steering_angle_command: int, delta_t: float) -> State:
         delta_enc: int = encoder_counts - self.last_encoder_count
 
-        self.state = state_prediction(self.state, [0, steering_angle_command], delta_enc)
+        self.state = state_prediction(self.state, [0, steering_angle_command], delta_enc, delta_t)
         self.last_encoder_count = encoder_counts
         
         return self.state

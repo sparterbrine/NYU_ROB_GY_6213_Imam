@@ -173,7 +173,6 @@ class Map:
 
         return closest_distance
 
-
 # Class to hold a particle
 class Particle:
     
@@ -199,8 +198,9 @@ class Particle:
         self.weight = 1.
 
     # Function to take a particle and "randomly" propagate it forward according to a motion model.
-    def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int):
-        predicted_next_state = motion_models.state_prediction(last_state, [delta_encoder_counts, steering], delta_encoder_counts)
+    def propagate_state(self, last_state: State, delta_encoder_counts: int, steering: int, delta_t: float):
+        predicted_next_state = motion_models.state_prediction(last_state, [delta_encoder_counts, steering], delta_encoder_counts, delta_t)
+        # breakpoint()
         predicted_next_state.x += random.gauss(0, parameters.motion_distance_variance)
         predicted_next_state.y += random.gauss(0, parameters.motion_distance_variance)
         predicted_next_state.theta += random.gauss(0, parameters.theta_variance)
@@ -253,14 +253,14 @@ class ParticleSet:
     def __init__(self, num_particles: int, xy_range: XY_range, initial_state: State, state_stdev: State, known_start_state: bool):
         self.num_particles: int = num_particles
         self.particle_list: List[Particle] = []
-        if known_start_state:
-            self.generate_initial_state_particles(initial_state, state_stdev)
-        else:
-            self.generate_uniform_random_particles(xy_range)
+        # if known_start_state:
+        #     self.generate_initial_state_particles(initial_state, state_stdev)
+        # else:
+        self.generate_uniform_random_particles(xy_range)
         self.mean_state: State = State(0., 0., 0.)
         self._use_clustering: bool = parameters.use_clustering
         self._clustering_radius: float = parameters.clustering_radius
-        self.update_mean_state()
+        # self.update_mean_state()
         
     # Function to reset particles and random locations in the workspace.
     def generate_uniform_random_particles(self, xy_range: XY_range):
@@ -409,17 +409,19 @@ class ParticleFilter:
         self.last_encoder_counts: int = encoder_counts_0
 
     # Update the states given new measurements
-    def update(self, odometery_signal: RobotOdomSignal, measurement_signal: RobotSensorSignal):
-        self.prediction(odometery_signal)
+    def update(self, odometery_signal: RobotOdomSignal, measurement_signal: RobotSensorSignal, delta_t: float):
+
+        self.prediction(odometery_signal, delta_t)
         if len(measurement_signal.angles) > 0:
             self.correction(measurement_signal)
+            # pass
         # else:
         #     print("No movement, did not run correction step.")
         self.particle_set.update_mean_state()
         self.state_estimate_list.append(self.state_estimate.deepcopy())
 
     # Predict the current state from the last state.
-    def prediction(self, odometry_signal: RobotOdomSignal):
+    def prediction(self, odometry_signal: RobotOdomSignal, delta_t: float):
         # odometry_signal.cmd_speed carries the cumulative encoder count;
         # cmd_steering_angle carries the current steering angle (degrees).
         delta_encoder_counts: int = odometry_signal.encoder_total_count - self.last_encoder_counts
@@ -428,7 +430,7 @@ class ParticleFilter:
 
         for particle in self.particle_set.particle_list:
             last_state: State = particle.state.deepcopy()
-            particle.propagate_state(last_state, delta_encoder_counts, steering)
+            particle.propagate_state(last_state, delta_encoder_counts, steering, delta_t)
 
     # Correct the predicted states.
     def correction(self, measurement_signal: RobotSensorSignal):
@@ -497,18 +499,18 @@ class ParticleFilterPlot:
                    math.cos(state_mean.theta), math.sin(state_mean.theta),
                    color='b', scale=1/self.dir_length, label='Mean')
 
-        # Plot largest DBSCAN cluster centroid (orange) and lidar rays from it
-        cluster_centroid = dbscan_largest_cluster_centroid(particle_set)
-        if cluster_centroid is not None:
-            plt.quiver(cluster_centroid.x, cluster_centroid.y,
-                       math.cos(cluster_centroid.theta), math.sin(cluster_centroid.theta),
-                       color='orange', scale=1/self.dir_length, label='Cluster')
-            for i in range(len(lidar_signal.angles)):
-                distance = lidar_signal.convert_hardware_distance(lidar_signal.distances[i])
-                angle = lidar_signal.convert_hardware_angle(lidar_signal.angles[i]) + cluster_centroid.theta
-                x_ray = [cluster_centroid.x, cluster_centroid.x + distance * math.cos(angle)]
-                y_ray = [cluster_centroid.y, cluster_centroid.y + distance * math.sin(angle)]
-                plt.plot(x_ray, y_ray, color='salmon', linewidth=0.5, alpha=0.4)
+        # Plot highest-weight particle (orange) and lidar rays from it
+        best_particle = max(particle_set.particle_list, key=lambda p: p.weight)
+        best_state = best_particle.state
+        plt.quiver(best_state.x, best_state.y,
+                   math.cos(best_state.theta), math.sin(best_state.theta),
+                   color='orange', scale=1/self.dir_length, label='Best particle')
+        for i in range(len(lidar_signal.angles)):
+            distance = lidar_signal.convert_hardware_distance(lidar_signal.distances[i])
+            angle = lidar_signal.convert_hardware_angle(lidar_signal.angles[i]) + best_state.theta
+            x_ray = [best_state.x, best_state.x + distance * math.cos(angle)]
+            y_ray = [best_state.y, best_state.y + distance * math.sin(angle)]
+            plt.plot(x_ray, y_ray, color='salmon', linewidth=0.5, alpha=0.4)
 
         x_particles, y_particles = self.to_plot_data(particle_set)
         plt.plot(x_particles, y_particles, 'g.')
@@ -548,11 +550,15 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
     # Create plotting tool for particles
     particle_filter_plot: ParticleFilterPlot = ParticleFilterPlot(map)
+    particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, pf_data[0][2], True)
+    breakpoint() #initial frame
     temp_particle = Particle()
 
     # Loop over pf data
     for t in range(1, len(pf_data)):
         row = pf_data[t]
+        delta_t: float = pf_data[t][0] - pf_data[t-1][0]
+        # print(f"Time step {t}, Δt: {delta_t:.2f} seconds")
         u_t: RobotOdomSignal = RobotOdomSignal(row[1][0], row[1][1]) # robot_sensor_signal
         z_t: RobotSensorSignal = row[2] # lidar_sensor_signal
 
@@ -560,15 +566,16 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
         # if __name__ == '__main__':
         #     print(f"Control: {u_t.encoder_total_count} counts, {u_t.cmd_steering_angle} degrees | Measurement: {z_t.distances} distances")
         # Run the PF for a time step
-        particle_filter.update(u_t, z_t)
+        particle_filter.update(u_t, z_t, delta_t)
         if t == 1:
             temp_particle.state = particle_filter.particle_set.mean_state.deepcopy()
         else:
-            temp_particle.propagate_state(temp_particle.state, u_t.encoder_total_count, u_t.cmd_steering_angle)
+            temp_particle.propagate_state(temp_particle.state, u_t.encoder_total_count, u_t.cmd_steering_angle, delta_t)
         particle_filter_plot.means_states.append(particle_filter.particle_set.mean_state.deepcopy())
         # Propagate the mean state using a temporary Particle and append the result
         particle_filter_plot.predicted_states.append(temp_particle.state.deepcopy())
         particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
+        # breakpoint() #between frames
 
     # particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, z_t, False)
 
