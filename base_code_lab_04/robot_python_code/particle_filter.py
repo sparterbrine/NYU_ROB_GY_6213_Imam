@@ -440,7 +440,8 @@ class ParticleFilter:
 
         # Convert log-weights to linear using the log-sum-exp trick (subtract max to prevent underflow).
         log_weights = [p.weight for p in self.particle_set.particle_list]
-        max_log = max(log_weights)
+        max_log = 0
+        # max_log = max(log_weights)
         for p, lw in zip(self.particle_set.particle_list, log_weights):
             p.weight = math.exp(lw - max_log)
 
@@ -550,8 +551,8 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
     # Create plotting tool for particles
     particle_filter_plot: ParticleFilterPlot = ParticleFilterPlot(map)
-    particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, pf_data[0][2], True)
-    breakpoint() #initial frame
+    # particle_filter_plot.update(particle_filter.particle_set.mean_state, particle_filter.particle_set, pf_data[0][2], True)
+    # breakpoint() #initial frame
     temp_particle = Particle()
 
     # Loop over pf data

@@ -74,13 +74,13 @@ initial_state_stdev_y: float = 4.0
 initial_state_stdev_theta: float = 3.0
 num_particles = 300
 distance_variance = 0.05       # sensor noise variance (metres²) — used in weight calculation
-motion_distance_variance = 0.01 # motion noise std dev (metres) — used in propagate_state
-theta_variance = 0.005
+motion_distance_variance = 0.05 # motion noise std dev (metres) — used in propagate_state
+theta_variance = 0.05
 grid_dimensions = [[0., 4.], [-2., 2.]] # [x_min, x_max], [y_min, y_max]
 _d = (0.15*np.sqrt(2)/2)
 clustering_radius = 2.
 use_clustering: bool = False
-lidar_max_range_m: float = 5  # meters; rays at or beyond this distance are ignored (open-space returns)
+lidar_max_range_m: float = 12  # meters; rays at or beyond this distance are ignored (open-space returns)
 wall_corner_list = [
     [0.0, 0.0, 2.440, 0.0],
     [2.440, 0.0, 2.440, 1.880],
