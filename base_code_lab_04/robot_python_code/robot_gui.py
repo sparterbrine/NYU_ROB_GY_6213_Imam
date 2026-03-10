@@ -14,10 +14,11 @@ from robot import Robot
 import robot_python_code
 import parameters
 from trajectories import TRAJECTORIES, TrajectoryRunner
+# from aruco_pose_estimator import ArucoPoseEstimator  # Camera operated separately
 
 # Global variables
 logging = False
-stream_video = True
+stream_video = False
 
 
 # Frame converter for the video stream, from OpenCV to a JPEG image
@@ -28,12 +29,12 @@ def convert(frame: np.ndarray) -> bytes:
     """
     _, imencode_image = cv2.imencode('.jpg', frame)
     return imencode_image.tobytes()
-    
+
 # Create the connection with a real camera.
 def connect_with_camera():
     video_capture = cv2.VideoCapture(1)
     return video_capture
-    
+
 def update_video(video_image):
     if stream_video:
         video_image.force_reload()
@@ -47,10 +48,19 @@ def main():
 
     # Robot variables
     video_capture = None
-    if stream_video:
-        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    # if stream_video:
+    #     video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
     robot = Robot(video_capture)
     trajectory_runner = TrajectoryRunner()
+
+    # # ArUco pose estimator (camera operated separately)
+    # aruco_estimator = ArucoPoseEstimator(
+    #     camera_matrix=parameters.camera_matrix,
+    #     dist_coeffs=parameters.dist_coeffs,
+    #     marker_length=parameters.marker_length,
+    #     known_markers=parameters.KNOWN_MARKERS,
+    #     robot_marker_id=7,
+    # )
 
     # Lidar data
     max_lidar_range = 12
@@ -67,26 +77,23 @@ def main():
     # Set dark mode for gui
     dark = ui.dark_mode()
     dark.value = True
-    
-    # Set up the video stream, not needed for lab 1
-    if stream_video:
-        video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
-    
-    # Enable frame grabs from the video stream.
-    @app.get('/video/frame')
-    async def grab_video_frame() -> Response:
-        if not video_capture.isOpened():
-            return Response(status_code=204)
-        # The `video_capture.read` call is a blocking function.
-        # So we run it in a separate thread (default executor) to avoid blocking the event loop.
-        _, frame = await run.io_bound(video_capture.read)
-        if frame is None:
-            return Response(status_code=204)
-        # `convert` is a CPU-intensive function, so we run it in a separate process to avoid blocking the event loop and GIL.
-        jpeg = await run.cpu_bound(convert, frame)
-        return Response(content=jpeg, media_type='image/jpeg')
 
-    # Convert lidar data to something visible in correct units. This is dummy data for lab 1.
+    # # Set up the video stream
+    # if stream_video:
+    #     video_capture = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+
+    # # Enable frame grabs from the video stream.
+    # @app.get('/video/frame')
+    # async def grab_video_frame() -> Response:
+    #     if not video_capture.isOpened():
+    #         return Response(status_code=204)
+    #     _, frame = await run.io_bound(video_capture.read)
+    #     if frame is None:
+    #         return Response(status_code=204)
+    #     jpeg = await run.cpu_bound(convert, frame)
+    #     return Response(content=jpeg, media_type='image/jpeg')
+
+    # Convert lidar data to something visible in correct units.
     def update_lidar_data():
         for i in range(robot.robot_sensor_signal.num_lidar_rays):
             distance_in_mm = robot.robot_sensor_signal.distances[i]
@@ -94,7 +101,31 @@ def main():
             if distance_in_mm > 20 and abs(angle) < 360:
                 index = max(0,min(int(360/lidar_angle_res-1),int((angle-(lidar_angle_res/2))/lidar_angle_res)))
                 lidar_distance_list[index] = distance_in_mm/1000
-               
+
+    # # ArUco state: last captured pose and a flag to trigger a post-move capture
+    # aruco_pose_last = None
+    # needs_post_capture = False
+
+    # def capture_aruco_snapshot():
+    #     """Open camera, grab one frame, estimate pose, close camera. Updates aruco_pose_last."""
+    #     nonlocal aruco_pose_last
+    #     cap = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    #     pose = None
+    #     if cap.isOpened():
+    #         ret, frame = cap.read()
+    #         if ret and frame is not None:
+    #             pose, _ = aruco_estimator.estimate_pose(frame)
+    #             if pose is not None:
+    #                 aruco_pose_last = pose
+    #                 robot.camera_sensor_signal = [pose['x'], pose['y'], pose['z'], pose['roll'], pose['pitch'], pose['yaw']]
+    #                 aruco_pose_label.set_text(f"{pose['x']:.3f}, {pose['y']:.3f}, {pose['yaw']:.1f}°")
+    #             else:
+    #                 aruco_pose_label.set_text("No pose (markers not visible)")
+    #         else:
+    #             aruco_pose_label.set_text("No frame")
+    #     cap.release()
+    #     return pose
+
     # Determine what speed and steering commands to send
     def update_commands():
 
@@ -107,13 +138,12 @@ def main():
                 steering_switch.value = False
                 robot.extra_logging = True
                 print("End Trial :", delta_time)
-        
+
         if robot.extra_logging:
             delta_time = get_time_in_ms() - robot.trial_start_time
             if delta_time > parameters.trial_time + parameters.extra_trial_log_time:
                 logging_switch.value = False
                 robot.extra_logging = False
-                
 
         # Trajectory runner overrides manual sliders when active
         if trajectory_runner.is_running:
@@ -133,7 +163,7 @@ def main():
         else:
             cmd_steering_angle = 0
         return cmd_speed, cmd_steering_angle
-        
+
     # Update
     def update_connection_to_robot():
         if udp_switch.value:
@@ -150,7 +180,7 @@ def main():
             if robot.connected_to_hardware:
                 robot.eliminate_udp_connection()
                 robot.connected_to_hardware = False
-        
+
     # Update the speed slider if steering is not enabled
     def enable_speed():
         d = 0
@@ -168,7 +198,7 @@ def main():
             plt.style.use('dark_background')
             plt.tick_params(axis='x', colors='lightgray')
             plt.tick_params(axis='y', colors='lightgray')
-                
+
             for i in range(num_angles):
                 distance = lidar_distance_list[i]
                 cos_ang = lidar_cos_angle_list[i]
@@ -180,35 +210,9 @@ def main():
             plt.xlim(-2,2)
             plt.ylim(-2,2)
 
-    # Visualize the lidar scans
-    def show_localization_plot():
-        with main_plot:
-            fig = main_plot.fig
-            fig.patch.set_facecolor('black')
-            plt.clf()
-            plt.style.use('dark_background')
-            plt.tick_params(axis='x', colors='lightgray')
-            plt.tick_params(axis='y', colors='lightgray')
-            
-            sigma = 3
-            covar_matrix = parameters.covariance_plot_scale * robot.extended_kalman_filter.state_covariance[0:2,0:2]#np.array([[sigma, -sigma*0.9],[ -sigma*0.9, sigma]])
-            x_est = robot.extended_kalman_filter.state_mean[0]
-            y_est = robot.extended_kalman_filter.state_mean[1]
-            lambda_, v = np.linalg.eig(covar_matrix)
-            lambda_ = np.sqrt(lambda_)
-            ell = Ellipse(xy=(x_est, y_est), alpha=0.5, facecolor='red',width=lambda_[0], height=lambda_[1], angle=np.rad2deg(np.arctan2(*v[:,0][::-1])))
-            ax = fig.gca()
-            ax.add_artist(ell)
-
-            plt.plot(x_est, y_est, 'ro')
-
-            plt.grid(True)
-            plot_range = 1
-            plt.xlim(-plot_range, plot_range)
-            plt.ylim(-plot_range, plot_range)
-
     # Run an experiment trial from a button push
     def run_trial():
+        # capture_aruco_snapshot()  # Camera operated separately
         robot.trial_start_time = get_time_in_ms()
         robot.running_trial = True
         steering_switch.value = True
@@ -220,28 +224,27 @@ def main():
     # Create the gui title bar
     with ui.card().classes('w-full  items-center'):
         ui.label('ROB-GY - 6213: Robot Navigation & Localization').style('font-size: 24px;')
-    
-    # Create the video camera, lidar, and encoder sensor visualizations. These may be dummys for lab 01.
+
+    # Create the video camera, lidar, and encoder sensor visualizations.
     with ui.card().classes('w-full'):
         with ui.grid(columns=3).classes('w-full items-center'):
             with ui.card().classes('w-full items-center h-60'):
-                if stream_video:
-                    video_image = ui.interactive_image('/video/frame').classes('w-full h-full')
-                else:
-                    ui.image('./a_robot_image.jpg').props('height=2')
-                    video_image = None
+                # Camera display disabled
+                ui.image('./a_robot_image.jpg').props('height=2')
+                video_image = None
             with ui.card().classes('w-full items-center h-60'):
                 main_plot = ui.pyplot(figsize=(3, 3))
-            with ui.card().classes('items-center h-60'):
+            with ui.card().classes():
                 ui.label('Encoder:').style('text-align: center;')
                 encoder_count_label = ui.label('0')
-                # New: x, y, theta label
                 ui.label('z_t: x, y, theta').style('text-align: center;')
                 state_label = ui.label('0.0, 0.0, 0.0').style('text-align: center;')
+                # ui.label('ArUco pose: x, y, yaw').style('text-align: center;')
+                # aruco_pose_label = ui.label('N/A').style('text-align: center;')
                 logging_switch = ui.switch('Data Logging ')
                 udp_switch = ui.switch('Robot Connect')
                 run_trial_button = ui.button('Run Trial', on_click=lambda:run_trial())
-                
+
     # Create the robot manual control slider and switch for speed
     with ui.card().classes('w-full'):
         with ui.grid(columns=4).classes('w-full'):
@@ -265,12 +268,13 @@ def main():
                 ui.label().bind_text_from(slider_steering, 'value').style('text-align: center;')
             with ui.card().classes('w-full items-center'):
                 steering_switch = ui.switch('Enable', on_change=lambda: enable_steering())
-        
+
 
     # Trajectory runner controls
     def run_trajectory():
         name = trajectory_select.value
         if name:
+            # capture_aruco_snapshot()  # Camera operated separately
             robot.data_logger.set_next_session_name(name)
             logging_switch.value = True
             trajectory_runner.start(name)
@@ -278,6 +282,7 @@ def main():
 
     def stop_trajectory():
         trajectory_runner.stop()
+        # capture_aruco_snapshot()  # Camera operated separately
         logging_switch.value = False
         trajectory_status_label.set_text('Stopped')
 
@@ -301,23 +306,17 @@ def main():
         robot.control_loop(cmd_speed, cmd_steering_angle, logging_switch.value)
         encoder_count_label.set_text(robot.robot_sensor_signal.encoder_counts)
         # Update x, y, theta label
-        try:
-            x = float(robot.camera_sensor_signal[0])
-            y = float(robot.camera_sensor_signal[1])
-            theta = float(robot.camera_sensor_signal[5])
-            state_label.set_text(f"{x:.2f}, {y:.2f}, {theta:.2f}")
-        except Exception:
-            state_label.set_text("N/A, N/A, N/A")
-        
-        #update_lidar_data()
-        #show_lidar_plot()
-        # show_localization_plot()
-        # update_video(video_image)
+        # try:
+        #     x = float(robot.camera_sensor_signal[0])
+        #     y = float(robot.camera_sensor_signal[1])
+        #     theta = float(robot.camera_sensor_signal[5])
+        #     state_label.set_text(f"{x:.2f}, {y:.2f}, {theta:.2f}")
+        # except Exception:
+        #     state_label.set_text("N/A, N/A, N/A")
+
         update_lidar_data()
         # show_lidar_plot()
-        #show_localization_plot()
-        #update_video(video_image)
-        
+
     ui.timer(0.1, control_loop)
 
 # Run the gui

@@ -16,6 +16,7 @@ class Robot:
         self.running_trial = False
         self.extra_logging = False
         self.trial_start_time = 0
+        self._last_update_time: float = 0.
         self.msg_sender: MsgSender = None
         self.msg_receiver: MsgReceiver = None
         self.camera_sensor: CameraSensor = CameraSensor(parameters.camera_id, video_capture)
@@ -43,20 +44,13 @@ class Robot:
     def update_state_estimate(self):
         u_t: RobotOdomSignal = RobotOdomSignal(self.robot_sensor_signal.encoder_counts, self.robot_sensor_signal.steering) # robot_sensor_signal
         z_t: RobotSensorSignal = self.robot_sensor_signal
-        self.particle_filter.update(u_t, z_t)
+        now = time.perf_counter()
+        delta_t = now - self._last_update_time if self._last_update_time > 0 else 0.1
+        self._last_update_time = now
+        self.particle_filter.update(u_t, z_t, delta_t)
 
     # One iteration of the control loop to be called repeatedly
-    def control_loop(self, cmd_speed = 0, cmd_steering_angle = 0, logging_switch_on = False):
-        # Get camera signal
-        #self.camera_sensor_signal = self.camera_sensor.get_signal(self.camera_sensor_signal)
-
-        # Grab a raw camera frame for logging (no pose estimation overhead)
-        frame = None
-        if logging_switch_on and self.camera_sensor.cap is not None and self.camera_sensor.cap.isOpened():
-            ret, frame = self.camera_sensor.cap.read()
-            if not ret:
-                frame = None
-
+    def control_loop(self, cmd_speed = 0, cmd_steering_angle = 0, logging_switch_on = False, aruco_pose = None):
         # Receive msg
         if self.msg_sender != None:
             self.robot_sensor_signal = self.msg_receiver.receive_robot_sensor_signal(self.robot_sensor_signal)
@@ -71,6 +65,6 @@ class Robot:
         if self.msg_receiver != None:
             self.msg_sender.send_control_signal(control_signal)
 
-        # Log the data
-        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.particle_filter.particle_set.mean_state, self.particle_filter.particle_set, frame)
+        # Log the data (aruco_pose replaces the raw frame)
+        self.data_logger.log(logging_switch_on, time.perf_counter(), control_signal, self.robot_sensor_signal, self.particle_filter.particle_set.mean_state, self.particle_filter.particle_set, aruco_pose)
 

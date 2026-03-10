@@ -44,12 +44,21 @@ num_robot_sensors = 2 # encoder, steering
 num_robot_control_signals = 2 # speed, steering
 
 KNOWN_MARKERS: Dict[int, Dict[str, float]] = {
-        1: {'x': 1.05, 'y': 0.85, 'yaw': 0},   # Close Left
-        3: {'x': 1.05, 'y': -0.95, 'yaw': 90}, # Close Right
-        6: {'x': 1.05, 'y': 0.05,  'yaw': 90}, # Close Center
-        2: {'x': 2.05, 'y': 0.05,  'yaw': 0},  # Mid Center
-        4: {'x': 3.05, 'y': 0.85, 'yaw': 180}, # Far Left
-        5: {'x': 3.05, 'y': -0.95,  'yaw': 90},# Far Right
+        # 1: {'x': 1.05, 'y': 0.85, 'yaw': 0},   # Close Left
+        # 3: {'x': 1.05, 'y': -0.95, 'yaw': 90}, # Close Right
+        # 6: {'x': 1.05, 'y': 0.05,  'yaw': 90}, # Close Center
+        # 2: {'x': 2.05, 'y': 0.05,  'yaw': 0},  # Mid Center
+        # 4: {'x': 3.05, 'y': 0.85, 'yaw': 180}, # Far Left
+        # 5: {'x': 3.05, 'y': -0.95,  'yaw': 90},# Far Right
+
+        1: {'x': 0.365, 'y': -1.210, 'yaw': -90},
+        2: {'x': 1.485, 'y': -0.263, 'yaw': -90},
+        3: {'x': 0.244, 'y': -0.166, 'yaw': -90},
+        4: {'x': 1.115, 'y': -1.852, 'yaw': -90},
+        5: {'x': 1.064, 'y': -0.603, 'yaw': -90},
+        6: {'x': 0.979, 'y': -1.180, 'yaw': -90},
+        # 7: {'x': 1.554, 'y': 2.115, 'yaw': -90},
+        8: {'x': 0.164, 'y': -2.135, 'yaw': -90},
     }
 
 # Logging parameters

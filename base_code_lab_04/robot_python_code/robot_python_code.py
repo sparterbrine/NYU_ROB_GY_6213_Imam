@@ -113,11 +113,7 @@ class DataLogger:
             self.dictionary['robot_sensor_signal'].append(robot_sensor_signal)
             self.dictionary['state_mean'].append(state_mean)
             self.dictionary['state_covariance'].append(particle_set)
-            if frame is not None:
-                _, encoded = cv2.imencode('.jpg', frame)
-                self.dictionary['frame'].append(encoded.tobytes())
-            else:
-                self.dictionary['frame'].append(None)
+            self.dictionary['frame'].append(frame)  # frame is now an aruco pose dict or None
 
             self.line_count += 1
             if self.line_count > parameters.max_num_lines_before_write:
