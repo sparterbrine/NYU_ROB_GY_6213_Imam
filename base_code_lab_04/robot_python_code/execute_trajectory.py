@@ -21,12 +21,24 @@ import argparse
 import sys
 import time
 
+import cv2
+
 import parameters
 import robot_python_code
+from aruco_pose_estimator import ArucoPoseEstimator
 from robot import Robot
 from trajectories import TRAJECTORIES, TrajectoryRunner
 
 LOOP_PERIOD = 0.05  # seconds
+
+
+def capture_aruco_pose(cap: cv2.VideoCapture, estimator: ArucoPoseEstimator) -> dict | None:
+    """Grab one frame from an already-open capture and return a pose dict or None."""
+    ret, frame = cap.read()
+    if not ret or frame is None:
+        return None
+    pose, _ = estimator.estimate_pose(frame)
+    return pose
 
 
 def main():
@@ -40,9 +52,16 @@ def main():
         print(f"Available trajectories: {list(TRAJECTORIES.keys())}")
         sys.exit(1)
 
-    # --- Set up robot and trajectory runner ---
+    # --- Set up robot, trajectory runner, and ArUco estimator ---
     robot = Robot(video_capture=None)
     trajectory_runner = TrajectoryRunner()
+    estimator = ArucoPoseEstimator(
+        camera_matrix=parameters.camera_matrix,
+        dist_coeffs=parameters.dist_coeffs,
+        marker_length=parameters.marker_length,
+        known_markers=parameters.KNOWN_MARKERS,
+        robot_marker_id=7,
+    )
 
     # --- Connect to robot over UDP ---
     print(f"Connecting to robot at {parameters.arduinoIP}:{parameters.arduinoPort} ...")
@@ -64,6 +83,11 @@ def main():
     # --- Wait for user to press Enter ---
     input(f"\nPress Enter to start trajectory '{trajectory_name}' ...\n")
 
+    # --- Open camera (stays open for the entire trajectory) ---
+    cap = cv2.VideoCapture(parameters.camera_id + cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        print("Warning: camera could not be opened — poses will be None.")
+
     # --- Start trajectory and logging ---
     robot.data_logger.set_next_session_name(trajectory_name)
     trajectory_runner.start(trajectory_name)
@@ -76,8 +100,9 @@ def main():
         while trajectory_runner.is_running:
             loop_start = time.perf_counter()
 
+            pose = capture_aruco_pose(cap, estimator)
             cmd_speed, cmd_steering = trajectory_runner.update()
-            robot.control_loop(cmd_speed, cmd_steering, logging_on)
+            robot.control_loop(cmd_speed, cmd_steering, logging_on, aruco_pose=pose)
 
             # Sleep for the remainder of the loop period
             elapsed = time.perf_counter() - loop_start
@@ -88,12 +113,14 @@ def main():
     except KeyboardInterrupt:
         print("\nInterrupted — sending stop command.")
 
-    # --- Stop robot and flush log ---
-    robot.control_loop(0, 0, logging_on)  # one final tick with zero commands
+    # --- Final tick and cleanup ---
+    pose = capture_aruco_pose(cap, estimator)
+    robot.control_loop(0, 0, logging_on, aruco_pose=pose)
     robot.data_logger.log(False, time.perf_counter(), [0, 0],
                           robot.robot_sensor_signal,
                           robot.particle_filter.particle_set.mean_state,
                           robot.particle_filter.particle_set, None)
+    cap.release()
     robot.eliminate_udp_connection()
 
     print("Trajectory complete. Data saved.")
