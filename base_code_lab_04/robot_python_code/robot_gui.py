@@ -314,7 +314,7 @@ def main():
         # except Exception:
         #     state_label.set_text("N/A, N/A, N/A")
 
-        update_lidar_data()
+        # update_lidar_data()
         # show_lidar_plot()
 
     ui.timer(0.1, control_loop)

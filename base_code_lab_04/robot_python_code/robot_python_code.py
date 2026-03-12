@@ -43,15 +43,16 @@ class UDPCommunication:
         self.bufferSize = bufferSize
         self.UDPServerSocket = socket.socket(family = socket.AF_INET, type = socket.SOCK_DGRAM)
         self.UDPServerSocket.bind((localIP, localPort))
-        
-    # Receive a message from the robot
+        self.UDPServerSocket.settimeout(0.01)  # 10 ms non-blocking timeout
+
+    # Receive a message from the robot. Returns None if no packet arrived within the timeout.
     def receive_msg(self):
-        bytesAddressPair = self.UDPServerSocket.recvfrom(self.bufferSize)
+        try:
+            bytesAddressPair = self.UDPServerSocket.recvfrom(self.bufferSize)
+        except socket.timeout:
+            return None
         message = bytesAddressPair[0]
-        address = bytesAddressPair[1]
         clientMsg = "{}".format(message.decode())
-        clientIP = "{}".format(address)
-        
         return clientMsg
        
     # Send a message to the robot
