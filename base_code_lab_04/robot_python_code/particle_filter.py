@@ -543,6 +543,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
 
     # Get data to filter
     pf_data: list = data_handling.get_file_data_for_pf(filename)
+    # breakpoint()
     
     '''List of trios [timestamp, control_signal, robot_sensor_signal]'''
 
@@ -562,7 +563,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
         # print(f"Time step {t}, Δt: {delta_t:.2f} seconds")
         u_t: RobotOdomSignal = RobotOdomSignal(row[1][0], row[1][1]) # robot_sensor_signal
         z_t: RobotSensorSignal = row[2] # lidar_sensor_signal
-
+        print("u_t: ", z_t.encoder_counts)
         u_t.encoder_total_count = z_t.encoder_counts
         # if __name__ == '__main__':
         #     print(f"Control: {u_t.encoder_total_count} counts, {u_t.cmd_steering_angle} degrees | Measurement: {z_t.distances} distances")
@@ -571,7 +572,7 @@ def offline_pf(filename: str = './data/robot_data_0_0_25_02_26_21_41_33.pkl'):
         if t == 1:
             temp_particle.state = particle_filter.particle_set.mean_state.deepcopy()
         else:
-            temp_particle.propagate_state(temp_particle.state, u_t.encoder_total_count, u_t.cmd_steering_angle, delta_t)
+            temp_particle.propagate_state(temp_particle.state, u_t.encoder_total_count - particle_filter.last_encoder_counts, u_t.cmd_steering_angle, delta_t)
         particle_filter_plot.means_states.append(particle_filter.particle_set.mean_state.deepcopy())
         # Propagate the mean state using a temporary Particle and append the result
         particle_filter_plot.predicted_states.append(temp_particle.state.deepcopy())

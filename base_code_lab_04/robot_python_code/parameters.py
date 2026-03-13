@@ -4,10 +4,10 @@ from typing import Dict
 
 # UDP parameters
 localIP = "192.168.0.199" # Put your laptop computer's IP here 199
-arduinoIP = "192.168.0.200" # Put your arduino's IP here 200
+arduinoIP = "192.168.0.198" # Put your arduino's IP here 200
 localPort = 4010
 arduinoPort = 4010
-bufferSize = 1024
+bufferSize = 2048
 
 # Camera parameters
 camera_id = 1
@@ -75,17 +75,17 @@ I3 = np.array([[1, 0, 0],[0, 1, 0], [0, 0, 1]])
 covariance_plot_scale = 100
 
 # PF parameters, modify the map and num particles as you see fit.
-initial_state_x: float = 1.5
-initial_state_y: float = 0.5
+initial_state_x: float = .5
+initial_state_y: float = 1.25
 initial_state_theta: float = 0.0
-initial_state_stdev_x: float = 4.0
-initial_state_stdev_y: float = 4.0
+initial_state_stdev_x: float = 0.5
+initial_state_stdev_y: float = 0.5
 initial_state_stdev_theta: float = 3.0
 num_particles = 300
 distance_variance = 0.05       # sensor noise variance (metres²) — used in weight calculation
 motion_distance_variance = 0.05 # motion noise std dev (metres) — used in propagate_state
 theta_variance = 0.05
-grid_dimensions = [[0., 4.], [-2., 2.]] # [x_min, x_max], [y_min, y_max]
+grid_dimensions = [[0., 2.5], [0., 2.]] # [x_min, x_max], [y_min, y_max]
 _d = (0.15*np.sqrt(2)/2)
 clustering_radius = 2.
 use_clustering: bool = False

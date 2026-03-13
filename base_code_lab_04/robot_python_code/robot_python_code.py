@@ -43,15 +43,23 @@ class UDPCommunication:
         self.bufferSize = bufferSize
         self.UDPServerSocket = socket.socket(family = socket.AF_INET, type = socket.SOCK_DGRAM)
         self.UDPServerSocket.bind((localIP, localPort))
-        
-    # Receive a message from the robot
+        self.UDPServerSocket.settimeout(0.01)  # 10 ms — never block the event loop
+
+    # Receive a message from the robot. Drains the socket buffer and returns the
+    # most recent packet, or None if no packet arrived within the timeout.
     def receive_msg(self):
-        bytesAddressPair = self.UDPServerSocket.recvfrom(self.bufferSize)
+        try:
+            bytesAddressPair = self.UDPServerSocket.recvfrom(self.bufferSize)
+        except socket.timeout:
+            return None
+        # Drain any additional queued packets, keeping only the freshest one.
+        while True:
+            try:
+                bytesAddressPair = self.UDPServerSocket.recvfrom(self.bufferSize)
+            except socket.timeout:
+                break
         message = bytesAddressPair[0]
-        address = bytesAddressPair[1]
         clientMsg = "{}".format(message.decode())
-        clientIP = "{}".format(address)
-        
         return clientMsg
        
     # Send a message to the robot
@@ -190,8 +198,10 @@ class MsgReceiver:
         if new_receive_time - self.last_receive_time > self.delta_receive_time:
             received_msg = self.udp_communication.receive_msg()
             self.last_receive_time = new_receive_time
+            if received_msg is None:  # socket timed out — no packet yet
+                return False, ""
             return True, received_msg
-            
+
         return False, ""
     
     # Given a new message, put it in a digestable format
@@ -213,7 +223,6 @@ class MsgReceiver:
             unpack_ret, unpacked_receive_msg = self.unpack_msg(packed_receive_msg)
             if unpack_ret:
                 robot_sensor_signal = RobotSensorSignal(unpacked_receive_msg)
-            
         return robot_sensor_signal
 
 # Class to hold a camera sensor data. Not needed for lab 1.
@@ -305,10 +314,14 @@ class RobotSensorSignal:
         '''Angles in degrees'''
         self.distances: List[float] = []
         '''Distances in mm'''
+        
         for i in range(self.num_lidar_rays):
             index = 3 + i*2
-            self.angles.append(unpacked_msg[index])
-            self.distances.append(unpacked_msg[index+1])
+            try:
+                self.angles.append(unpacked_msg[index])
+                self.distances.append(unpacked_msg[index+1])
+            except Exception as e:
+                print(e)
     
     # Print the robot sensor signal contents.
     def print(self):

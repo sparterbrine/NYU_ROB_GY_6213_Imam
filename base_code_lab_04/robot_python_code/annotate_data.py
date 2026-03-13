@@ -100,6 +100,15 @@ def draw_frame(frame: np.ndarray, index: int, total: int, data: dict, annotation
         lines.append(f"cam  x={float(cam[0]):.3f}  y={float(cam[1]):.3f}  θ={float(cam[5]):.3f}")
     except (KeyError, IndexError, TypeError):
         pass
+    try:
+        raw = data['frame'][index]
+        pose = raw['pose'] if isinstance(raw, dict) else None
+        if pose is not None:
+            lines.append(f"aruco x={pose['x']:.3f}  y={pose['y']:.3f}  yaw={pose['yaw']:.1f}°")
+        else:
+            lines.append("aruco (no detection)")
+    except (KeyError, IndexError, TypeError):
+        pass
     if ann:
         lines.append(f"GT   x={ann['x']:.3f}  y={ann['y']:.3f}  θ={ann['theta']:.3f}")
     else:
@@ -170,7 +179,8 @@ def main():
     cv2.namedWindow('Annotate Log', cv2.WINDOW_NORMAL)
 
     while True:
-        jpeg = frames_raw[index]
+        raw = frames_raw[index]
+        jpeg = raw['jpeg'] if isinstance(raw, dict) else raw  # support old (bytes) and new (dict) format
         if jpeg is None:
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
             cv2.putText(frame, "No frame captured", (20, 240),

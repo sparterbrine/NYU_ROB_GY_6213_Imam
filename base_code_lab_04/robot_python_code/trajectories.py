@@ -4,8 +4,9 @@ from time import time
 # Each trajectory is a list of (speed, steering_angle, duration_seconds) triples.
 # Speed: 0–100, steering_angle: -20–20 (degrees), duration: seconds.
 TRAJECTORIES = {
-    "Straight Line": [
-        (100, 0, 3.0),
+    "1_straight": [
+        (100, 0, 5.0),
+        (0, 0, 30),
     ],
     "rl_stright": [
         (100, 0, 3.0),
@@ -23,15 +24,19 @@ TRAJECTORIES = {
         (100,  0, 2.0),
         (100, 15, 1.5),
     ],
-    "scurve": [
-        (100,  10, 1.0),
-        (100, -10, 1.0),
+    "2_scurve": [
+        (100,  -10, 2.0),
+        (100, 10, 2.0),
         (100,   0, 1.0),
+        (0,   0, 30),
     ],
-    "rl_curve": [
-        (100,  0, 1.5),
-        (100, 20, 1.75),
-        (100,   0, 3.0),
+    "3_ucurve": [
+        (1,  0, 1),
+        (100 * 0.75,  0, 1.5 * 1.5),
+        (100* 0.75, 20, 2.0* 1.5),
+        (100* 0.75,   0, 3.0* 1.5),
+        (100* 0.75,   20, 2.0* 1.5),
+        (0,0,30),
     ],
     "lr_curve": [
         (100,  0, 1.5),
