@@ -207,7 +207,8 @@ class MsgReceiver:
     # Given a new message, put it in a digestable format
     def unpack_msg(self, packed_msg):
         unpacked_msg = []
-        msg_list = packed_msg.split(',')
+        msg_list = [s.strip() for s in packed_msg.split(',')]
+        msg_list = [s for s in msg_list if s]   # drop empty tokens (trailing newlines etc.)
         if len(msg_list) >= self.msg_size:
             for data in msg_list:
                 unpacked_msg.append(float(data))
@@ -318,10 +319,13 @@ class RobotSensorSignal:
         for i in range(self.num_lidar_rays):
             index = 3 + i*2
             try:
-                self.angles.append(unpacked_msg[index])
-                self.distances.append(unpacked_msg[index+1])
-            except Exception as e:
-                print(e)
+                angle = unpacked_msg[index]
+                dist  = unpacked_msg[index + 1]
+            except IndexError:
+                break   # packet too short — discard remaining rays
+            self.angles.append(angle)
+            self.distances.append(dist)
+        self.num_lidar_rays = len(self.angles)  # reflect actual parsed count
     
     # Print the robot sensor signal contents.
     def print(self):

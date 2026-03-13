@@ -76,12 +76,12 @@ covariance_plot_scale = 100
 
 # PF parameters, modify the map and num particles as you see fit.
 initial_state_x: float = .5
-initial_state_y: float = 1.25
+initial_state_y: float = 2.25
 initial_state_theta: float = 0.0
-initial_state_stdev_x: float = 0.5
-initial_state_stdev_y: float = 0.5
+initial_state_stdev_x: float = 0.25
+initial_state_stdev_y: float = 0.25
 initial_state_stdev_theta: float = 3.0
-num_particles = 300
+num_particles = 225
 distance_variance = 0.05       # sensor noise variance (metres²) — used in weight calculation
 motion_distance_variance = 0.05 # motion noise std dev (metres) — used in propagate_state
 theta_variance = 0.05

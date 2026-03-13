@@ -213,7 +213,7 @@ class Particle:
         Returns a log weight based on the likelihood of the lidar measurement given the particle's state and the map.\n
         Returns a negative value, to be normalised later in correction() across all particles. The more negative, the less likely the particle's state is given the measurement."""
         log_weight_list = []
-        for i in range(lidar_signal.num_lidar_rays):
+        for i in range(min(lidar_signal.num_lidar_rays, len(lidar_signal.distances), len(lidar_signal.angles))):
             distance_m: float = RobotSensorSignal.convert_hardware_distance(lidar_signal.distances[i])
 
             # Skip rays that hit nothing (open-space / max-range returns)
