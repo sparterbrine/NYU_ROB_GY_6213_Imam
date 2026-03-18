@@ -69,7 +69,8 @@ def run_pf(filename: str, traj_name: str) -> dict:
         encoder_counts_0=pf_data[0][2].encoder_counts,
     )
 
-    times, xs, ys, thetas, spreads = [], [], [], [], []
+    times, xs, ys, thetas = [], [], [], []
+    std_xs, std_ys, std_thetas = [], [], []
 
     for t in range(1, len(pf_data)):
         row = pf_data[t]
@@ -87,9 +88,12 @@ def run_pf(filename: str, traj_name: str) -> dict:
         ys.append(ms.y)
         thetas.append(ms.theta)
 
-        px = [p.state.x for p in pf.particle_set.particle_list]
-        py = [p.state.y for p in pf.particle_set.particle_list]
-        spreads.append(float(np.std(px) + np.std(py)))
+        px = np.array([p.state.x for p in pf.particle_set.particle_list])
+        py = np.array([p.state.y for p in pf.particle_set.particle_list])
+        pt = np.array([p.state.theta for p in pf.particle_set.particle_list])
+        std_xs.append(float(np.std(px)))
+        std_ys.append(float(np.std(py)))
+        std_thetas.append(float(np.std(pt)))
 
         if t % 100 == 0:
             print(f"  t={pf_data[t][0]:5.1f}s  "
@@ -97,12 +101,14 @@ def run_pf(filename: str, traj_name: str) -> dict:
 
     print(f"  Done — {len(times)} timesteps")
     return {
-        'map':     map_,
-        'times':   np.array(times),
-        'xs':      np.array(xs),
-        'ys':      np.array(ys),
-        'thetas':  np.array(thetas),
-        'spreads': np.array(spreads),
+        'map':       map_,
+        'times':     np.array(times),
+        'xs':        np.array(xs),
+        'ys':        np.array(ys),
+        'thetas':    np.array(thetas),
+        'std_xs':    np.array(std_xs),
+        'std_ys':    np.array(std_ys),
+        'std_thetas': np.array(std_thetas),
     }
 
 
@@ -123,24 +129,33 @@ def _draw_map(ax, map_, grid_dims):
 
 def plot_trial(res: dict, traj_name: str, output_dir: str):
     """Four-panel figure for one trajectory."""
-    times   = res['times']
-    xs      = res['xs']
-    ys      = res['ys']
-    thetas  = res['thetas']
-    spreads = res['spreads']
-    gt      = GROUND_TRUTH.get(traj_name)
+    times      = res['times']
+    xs         = res['xs']
+    ys         = res['ys']
+    thetas     = res['thetas']
+    std_xs     = res['std_xs']
+    std_ys     = res['std_ys']
+    std_thetas = res['std_thetas']
+    gt         = GROUND_TRUTH.get(traj_name)
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
     fig.suptitle(f'Particle Filter — {traj_name}', fontsize=14, fontweight='bold')
 
-    # ── Panel A: 2-D trajectory coloured by time ──────────────────────────
+    # ── Panel A: 2-D trajectory coloured by time + ±1σ corridor ──────────
     ax = axes[0, 0]
     _draw_map(ax, res['map'], parameters.grid_dimensions)
+
+    # ±1σ corridor: draw an ellipse-width tube using per-step std
+    from matplotlib.patches import Ellipse
+    for i in range(0, len(times), max(1, len(times) // 200)):
+        e = Ellipse((xs[i], ys[i]), width=2*std_xs[i], height=2*std_ys[i],
+                    facecolor='gray', alpha=0.12, zorder=3, linewidth=0)
+        ax.add_patch(e)
 
     norm  = plt.Normalize(times.min(), times.max())
     cvals = cm.viridis(norm(times))
     for i in range(len(times) - 1):
-        ax.plot(xs[i:i+2], ys[i:i+2], color=cvals[i], linewidth=1.5)
+        ax.plot(xs[i:i+2], ys[i:i+2], color=cvals[i], linewidth=1.5, zorder=4)
 
     sc = ax.scatter(xs, ys, c=times, cmap='viridis', s=12, zorder=5)
     fig.colorbar(sc, ax=ax, label='Time (s)', shrink=0.85)
@@ -151,35 +166,45 @@ def plot_trial(res: dict, traj_name: str, output_dir: str):
         ax.scatter(*gt['end'],   color='magenta', s=120, zorder=7, label='GT end',   marker='D', edgecolors='k', linewidths=0.8)
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
-    ax.set_title('Estimated 2-D Trajectory')
+    ax.set_title('Estimated 2-D Trajectory  (±1σ ellipses)')
     ax.set_aspect('equal', adjustable='box')
     ax.legend(fontsize=8, loc='lower right')
     ax.grid(True, alpha=0.3)
 
-    # ── Panel B: x(t) and y(t) ────────────────────────────────────────────
+    # ── Panel B: x(t) and y(t) with ±1σ bands ────────────────────────────
     ax = axes[0, 1]
     ax.plot(times, xs, 'b-', linewidth=1.5, label='x (m)')
+    ax.fill_between(times, xs - std_xs, xs + std_xs, color='blue', alpha=0.15, label='x ±1σ')
     ax.plot(times, ys, 'r-', linewidth=1.5, label='y (m)')
+    ax.fill_between(times, ys - std_ys, ys + std_ys, color='red',  alpha=0.15, label='y ±1σ')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Position (m)')
-    ax.set_title('x(t) and y(t)')
-    ax.legend()
+    ax.set_title('x(t) and y(t)  (±1σ)')
+    ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-    # ── Panel C: heading θ(t) ─────────────────────────────────────────────
+    # ── Panel C: heading θ(t) with ±1σ band ──────────────────────────────
     ax = axes[1, 0]
-    ax.plot(times, np.degrees(thetas), color='darkgreen', linewidth=1.5)
+    thetas_deg     = np.degrees(thetas)
+    std_thetas_deg = np.degrees(std_thetas)
+    ax.plot(times, thetas_deg, color='darkgreen', linewidth=1.5, label='θ')
+    ax.fill_between(times, thetas_deg - std_thetas_deg, thetas_deg + std_thetas_deg,
+                    color='green', alpha=0.15, label='±1σ')
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Heading θ (deg)')
-    ax.set_title('Estimated Heading θ(t)')
+    ax.set_title('Estimated Heading θ(t)  (±1σ)')
+    ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-    # ── Panel D: particle spread ───────────────────────────────────────────
+    # ── Panel D: per-axis std over time ───────────────────────────────────
     ax = axes[1, 1]
-    ax.plot(times, spreads, color='purple', linewidth=1.5)
+    ax.plot(times, std_xs, 'b-',  linewidth=1.5, label='σ_x')
+    ax.plot(times, std_ys, 'r-',  linewidth=1.5, label='σ_y')
+    ax.plot(times, std_thetas_deg, color='darkgreen', linewidth=1.5, label='σ_θ (deg)')
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Spread (m)')
-    ax.set_title('Particle Spread  (σ_x + σ_y)')
+    ax.set_ylabel('Std dev')
+    ax.set_title('Particle Standard Deviations')
+    ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
